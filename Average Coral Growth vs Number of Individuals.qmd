@@ -1,0 +1,123 @@
+---
+title: "Coral Growth"
+format: html
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+
+df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/Coral Table Final.xlsx")
+
+df <- df %>%
+  mutate(
+    Year = factor(Year),
+    Treatment = factor(Treatment, levels = c("1x1", "2x2", "TopOnly", "Con"))
+  ) %>%
+  rename(Coral_Species = `Coral Species`)
+
+# ---- AGGREGATE DUPLICATES (sum Size within same coral-year) ----
+df_agg <- df %>%
+  group_by(Block, Treatment, Coral_Species, `Coral ID`, Year) %>%
+  summarise(
+    Size = sum(Size, na.rm = TRUE),
+    # keep "Present" consistent: if any row says Yes, treat as Yes
+    `Coral Present (Yes or No)` = if_else(
+      any(`Coral Present (Yes or No)` == "Yes", na.rm = TRUE),
+      "Yes", "No"
+    ),
+    .groups = "drop"
+  )
+```
+
+```{r}
+df_agg %>%
+  count(Block, Treatment, Coral_Species, `Coral ID`, Year) %>%
+  filter(n > 1)
+```
+
+
+```{r}
+indiv_growth_agg <- df_agg %>%
+  mutate(Present = `Coral Present (Yes or No)` == "Yes") %>%
+  arrange(Block, Treatment, Coral_Species, `Coral ID`, Year) %>%
+  group_by(Block, Treatment, Coral_Species, `Coral ID`) %>%
+  mutate(
+    prev_present = lag(Present),
+    prev_size    = lag(Size),
+    indiv_growth_cm2 = Size - prev_size
+  ) %>%
+  filter(!(prev_present & !Present)) %>%   # drop the death transition year
+  ungroup()
+```
+
+
+```{r}
+mean_indiv_growth_agg <- indiv_growth_agg %>%
+  group_by(Block, Treatment, Year) %>%
+  summarise(
+    mean_indiv_growth_cm2   = mean(indiv_growth_cm2, na.rm = TRUE),
+    median_indiv_growth_cm2 = median(indiv_growth_cm2, na.rm = TRUE),
+    n_corals = sum(!is.na(indiv_growth_cm2)),
+    .groups = "drop"
+  )
+```
+
+
+
+```{r}
+# (optional but recommended) make sure Treatment + Year are clean
+mean_indiv_growth_agg <- mean_indiv_growth_agg %>%
+  mutate(
+    Treatment = trimws(as.character(Treatment)),
+    Year = as.factor(Year),
+    Treatment = factor(Treatment, levels = c("1x1", "2x2", "TopOnly", "Con"))
+  )
+
+# facet label mapping
+facet_labels <- c(
+  "1x1"     = "Small Inclusion",
+  "2x2"     = "Medium Inclusion",
+  "TopOnly" = "Large Inclusion",
+  "Con"     = "Control"
+)
+
+ggplot(mean_indiv_growth_agg,
+            aes(x = n_corals,
+                y = mean_indiv_growth_cm2,
+                color = Treatment)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_point(aes(shape = Year), size = 3, alpha = 0.7) +
+  scale_color_manual(
+    values = c(
+      "1x1"     = "darkorchid4",
+      "2x2"     = "darkred",
+      "TopOnly" = "deepskyblue2",
+      "Con"     = "black"
+    ),
+    labels = facet_labels   # keeps legend labels consistent too
+  ) +
+  facet_wrap(
+    ~ Treatment,
+    ncol = 1,
+    labeller = labeller(Treatment = facet_labels)
+  ) +
+  labs(
+    x = "Number of coral individuals",
+    y = expression("Mean Individual Growth (cm"^2*" yr"^-1*")"),
+    title = "Average coral growth vs number of individuals"
+  ) +
+  theme_bw()
+
+setwd("C:/Users/brody/Desktop/Brody Thesis Project/Figures")
+ggsave("Average Coral Growth vs Ind.jpg", width = 8, height = 8)
+
+```
+
+
+
+
+
+
+
+

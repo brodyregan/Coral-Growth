@@ -1,0 +1,251 @@
+---
+title: "Coral Growth Organized"
+format: html
+---
+
+## Create total area data set 
+```{r}
+library(tidyverse)
+library(readxl)
+
+df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/Coral Table Final.xlsx")
+
+df <- df %>%
+  mutate(
+     Year = factor(Year),
+    Treatment = factor(
+      Treatment,
+      levels = c("1x1", "2x2", "TopOnly", "Con")
+    )
+  )
+
+
+total_area <- df %>%
+  group_by(Block, Treatment, 'Coral Species', Year) %>%
+  summarise(
+    total_coral_area_cm2 = sum(Size, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+```
+
+## Create total area data set treating block as a replicate (combine)
+```{r}
+
+total_area_norep <- df %>%
+  group_by(Treatment, 'Coral Species', Year) %>%
+  summarise(
+    total_coral_area_cm2 = sum(Size, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+```
+
+
+#Format into growth rate, total area and proportional 
+```{r}
+coral_growth <- total_area %>%
+  arrange(Block, Treatment, 'Coral Species', Year) %>%
+  group_by(Block, Treatment, 'Coral Species') %>%
+  mutate(
+    coral_growth_cm2 = total_coral_area_cm2 - lag(total_coral_area_cm2),
+    coral_growth_prop = coral_growth_cm2 / lag(total_coral_area_cm2)
+  ) %>%
+  ungroup()
+
+```
+
+
+```{r}
+library(ggplot2)
+
+ggplot(total_area_norep,
+       aes(x = Year,
+           y = total_coral_area_cm2,
+           color = Treatment,
+           group = Treatment)) +
+  geom_line(alpha = 0.8) +
+  geom_point(size = 2) +
+  facet_wrap(~ 'Coral Species', scales = "free_y") +
+  scale_color_manual(
+  values = c(
+    "1x1"      = "darkorchid4",  # deep navy
+    "2x2"      = "darkred",  # ocean blue
+    "TopOnly" = "deepskyblue2",  # olive green
+    "Con"      = "black"   # charcoal gray
+  ),
+   labels = c(
+      "1x1"      = "Small Inclusion",
+      "2x2"      = "Medium Inclusion",
+      "top only" = "Large Inclusion",
+      "con"      = "Control"
+    )
+)+
+  labs(
+    y = expression("Total coral area (cm"^2*")"),
+    x = "Year",
+    title = "Total coral area through time",
+    color = "Treatment"
+  ) +
+  theme_bw()
+
+```
+
+
+
+
+## Individual Coral Growth 
+## 
+```{r}
+indiv_growth <- df %>%
+  arrange('Coral ID', Year) %>%
+  group_by('Coral ID', Block, Treatment, 'Coral Species') %>%
+  mutate(
+    indiv_growth_cm2 = Size - lag(Size)
+  ) %>%
+  filter(!is.na(indiv_growth_cm2)) %>%
+  ungroup()
+
+```
+
+## Average by Block x Treatment x Year
+
+```{r}
+mean_indiv_growth <- indiv_growth %>%
+  group_by(Block, Treatment, Year) %>%
+  summarise(
+    mean_indiv_growth_cm2 = mean(indiv_growth_cm2, na.rm = TRUE),
+    median_indiv_growth_cm2 = median(indiv_growth_cm2, na.rm = TRUE),
+    n_corals = n(),
+    .groups = "drop"
+  )
+
+```
+
+
+```{r}
+ggplot(mean_indiv_growth,
+       aes(x = n_corals,
+           y = mean_indiv_growth_cm2,
+           color = Treatment)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_point(size = 3, alpha = 0.7) +
+  scale_color_manual(
+    values = c(
+      "1x1"     = "darkorchid4",
+      "2x2"     = "darkred",
+      "TopOnly" = "deepskyblue2",
+      "Con"     = "black"
+    ),
+    labels = c(
+      "1x1"     = "Small Inclusion",
+      "2x2"     = "Medium Inclusion",
+      "TopOnly" = "Large Inclusion",
+      "Con"     = "Control"
+    )
+  ) +
+  facet_wrap(~ Treatment, scales = "free_y") +
+  labs(
+    x = "Number of coral individuals",
+    y = expression("Mean individual coral growth (cm"^2*" yr"^-1*")"),
+    title = "Average coral growth vs number of individuals",
+    color = "Treatment"
+  ) +
+  theme_bw()
+
+
+```
+
+
+
+## Adding prop
+```{r}
+n_corals_df <- df %>%
+  group_by(Block, Treatment, Year) %>%
+  summarise(
+    n_corals = sum(!is.na(Size)),   # or n() if every row is an individual
+    .groups = "drop"
+  )
+
+```
+
+```{r}
+prop_growth_df <- coral_growth %>%
+  select(Block, Treatment, Year, coral_growth_prop)
+
+```
+
+```{r}
+prop_growth_vs_n <- prop_growth_df %>%
+  left_join(n_corals_df,
+            by = c("Block", "Treatment", "Year")) %>%
+  filter(
+    is.finite(coral_growth_prop),
+  ) %>%
+  ungroup()   # drop first year per group
+
+```
+
+
+
+
+```{r}
+ggplot(prop_growth_vs_n,
+       aes(x = n_corals,
+           y = coral_growth_prop,
+           color = Treatment)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_point(size = 3, alpha = 0.7) +
+  scale_color_manual(
+    values = c(
+      "1x1"     = "darkorchid4",
+      "2x2"     = "darkred",
+      "TopOnly" = "deepskyblue2",
+      "Con"     = "black"
+    ),
+    labels = c(
+      "1x1"     = "Small Inclusion",
+      "2x2"     = "Medium Inclusion",
+      "TopOnly" = "Large Inclusion",
+      "Con"     = "Control"
+    )
+  ) +
+  facet_wrap(~ Treatment) +
+  labs(
+    x = "Number of coral individuals",
+    y = expression("prop growth (cm"^2*" yr"^-1*")"),
+    title = "prop coral growth vs number of individuals",
+    color = "Treatment"
+  ) +
+  theme_bw()
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
