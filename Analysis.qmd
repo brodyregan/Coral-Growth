@@ -1,0 +1,128 @@
+---
+title: "Analysis"
+format: html
+---
+
+
+```{r}
+library(lme4)
+
+model_prop <- lmer(
+  mean_prop_growth ~ Treatment + Year + (1|Block),
+  data = mean_prop_growth_1
+)
+
+summary(model_prop)
+anova(model_prop)
+```
+
+```{r}
+model_raw <- lmer(
+  mean_indiv_growth_cm2 ~ Treatment * Year + (1|Block),
+  data = mean_indiv_growth_agg
+)
+
+summary(model_raw)
+anova(model_raw)
+```
+
+
+
+
+```{r}
+model_density <- lmer(n_corals ~ Treatment + Year + (1|Block), data = mean_indiv_growth_agg)
+
+summary(model_density)
+anova(model_density)
+```
+
+```{r}
+#model checking 
+#
+plot(model_density)
+
+
+res <- resid(model_density)
+
+qqnorm(res)
+qqline(res, col = "red")
+
+hist(mean_indiv_growth_agg$n_corals)
+```
+
+
+```{r}
+library(performance)
+
+r2(model_density)
+```
+
+
+```{r}
+library(lme4)
+library(performance)
+
+# Full model
+model_full <- lmer(n_corals ~ Treatment + Year + (1|Block),
+                   data = mean_indiv_growth_agg)
+
+# Density-only model (Year only)
+model_density_only <- lmer(n_corals ~ Year + (1|Block),
+                           data = mean_indiv_growth_agg)
+
+# Treatment-only model
+model_treatment_only <- lmer(n_corals ~ Treatment + (1|Block),
+                             data = mean_indiv_growth_agg)
+```
+
+
+
+```{r}
+r2_full <- r2(model_full)
+r2_density <- r2(model_density_only)
+r2_treatment <- r2(model_treatment_only)
+```
+
+
+```{r}
+r2_table <- data.frame(
+  Model = c("Density only (Year)",
+            "Treatment only",
+            "Full model"),
+  Marginal_R2 = c(r2_density$R2_marginal,
+                  r2_treatment$R2_marginal,
+                  r2_full$R2_marginal),
+  Conditional_R2 = c(r2_density$R2_conditional,
+                     r2_treatment$R2_conditional,
+                     r2_full$R2_conditional)
+)
+
+r2_table
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
