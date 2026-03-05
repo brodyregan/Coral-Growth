@@ -9,54 +9,309 @@ library(readxl)
 library(dplyr)
 library(stringr)
 
-fish_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/Pal_Cage_fishvide_bm_v1.xlsx")
+combined_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/combined_coral_benthic_fish.xlsx")
 
 
-cover_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/Pal_ExCag_Dat_BR_V1.xlsx") %>%
-  mutate(
-    Treatment = str_trim(Treatment),
-    Treatment = dplyr::recode(Treatment, "Control" = "Con")
-  )
+# fish_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/Pal_Cage_fishvide_bm_v1.xlsx")
+# 
+# 
+# cover_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/Pal_ExCag_Dat_BR_V1.xlsx") %>%
+#   mutate(
+#     Treatment = str_trim(Treatment),
+#     Treatment = dplyr::recode(Treatment, "Control" = "Con")
+#   )
 ```
 
 
 
 ```{r}
-library(readxl)
-library(dplyr)
-library(writexl)
-
-# 1) Read + keep only the columns you need
-total_area_1 <- total_area %>%
-  select(Block, Treatment, Year, total_coral_area_cm2) %>%
-  mutate(Year = as.integer(Year) + 2017)
-
-mean_indiv_growth_agg_1 <- mean_indiv_growth_agg %>%
-  select(Block, Treatment, Year, mean_indiv_growth_cm2, n_corals) %>%
-  mutate(Year = as.integer(Year) + 2017)
-
-cover_df_1 <- cover_df %>%
-  select(Year, Block, Treatment,
-         CCA_calcareous, Fleshy_MA, `Lobo/Peys`, Scleractinian, SPAT, TAS) %>%
-  mutate(Year = as.integer(Year))
-
-fish_df_1 <- fish_df %>%
-  select(Year, Block, Treatment, Grazerdetritivore, Herbivore_Sc_Br) %>%
-  mutate(Year = as.integer(Year))
-
-# 2) Join everything together (keep all rows from total_area_norep)
-combined_df <- total_area_1 %>%
-  left_join(mean_indiv_growth_agg_1, by = c("Year", "Block", "Treatment")) %>%
-  left_join(cover_df_1, by = c("Year", "Block", "Treatment")) %>%
-  left_join(fish_df_1, by = c("Year", "Block", "Treatment")) %>%
-  select(
-    Year, Block, Treatment,
-    total_coral_area_cm2, mean_indiv_growth_cm2, n_corals,
-    CCA_calcareous, Fleshy_MA, `Lobo/Peys`, Scleractinian, SPAT, TAS,
-    Grazerdetritivore, Herbivore_Sc_Br
-  )
-
-# 3) Export
-write_xlsx(combined_df, "combined_coral_benthic_fish.xlsx")
+# library(readxl)
+# library(dplyr)
+# library(writexl)
+# 
+# # 1) Read + keep only the columns you need
+# total_area_1 <- total_area %>%
+#   select(Block, Treatment, Year, total_coral_area_cm2) %>%
+#   mutate(Year = as.integer(Year) + 2017)
+# 
+# mean_indiv_growth_agg_1 <- mean_indiv_growth_agg %>%
+#   select(Block, Treatment, Year, mean_indiv_growth_cm2, n_corals) %>%
+#   mutate(Year = as.integer(Year) + 2017)
+# 
+# cover_df_1 <- cover_df %>%
+#   select(Year, Block, Treatment,
+#          CCA_calcareous, Fleshy_MA, `Lobo/Peys`, Scleractinian, SPAT, TAS) %>%
+#   mutate(Year = as.integer(Year))
+# 
+# fish_df_1 <- fish_df %>%
+#   select(Year, Block, Treatment, Grazerdetritivore, Herbivore_Sc_Br) %>%
+#   mutate(Year = as.integer(Year))
+# 
+# # 2) Join everything together (keep all rows from total_area_norep)
+# combined_df <- total_area_1 %>%
+#   left_join(mean_indiv_growth_agg_1, by = c("Year", "Block", "Treatment")) %>%
+#   left_join(cover_df_1, by = c("Year", "Block", "Treatment")) %>%
+#   left_join(fish_df_1, by = c("Year", "Block", "Treatment")) %>%
+#   select(
+#     Year, Block, Treatment,
+#     total_coral_area_cm2, mean_indiv_growth_cm2, n_corals,
+#     CCA_calcareous, Fleshy_MA, `Lobo/Peys`, Scleractinian, SPAT, TAS,
+#     Grazerdetritivore, Herbivore_Sc_Br
+#   )
+# 
+# library(writexl)
+# # 3) Export
+# write_xlsx(combined_df, "C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/combined_coral_benthic_fish.xlsx")
 ```
 
+## Remove 2018 and 2024, convert year/treat/block to factor 
+
+```{r}
+library(dplyr)
+
+combined_df1 <- combined_df %>%
+  filter(!Year %in% c(2018, 2024)) |> 
+   mutate(
+    Year = factor(Year),
+    Treatment = factor(Treatment),
+    Block = factor(Block)
+  )
+```
+## Reorder Treatments
+
+```{r}
+combined_df1 <- combined_df1 %>%
+  mutate(
+    Treatment = factor(
+      Treatment,
+      levels = c("Con", "1x1", "2x2", "TopOnly")
+    )
+  )
+```
+
+
+
+## Testing for Family and Model 
+
+```{r}
+check_response_1 <- function(n_corals){
+
+  print(var)
+
+  print(summary(combined_df1[[n_corals]]))
+
+  print(mean(combined_df1[[n_corals]], na.rm=TRUE))
+  print(var(combined_df1[[n_corals]], na.rm=TRUE))
+
+  hist(combined_df1[[n_corals]])
+  qqnorm(combined_df1[[n_corals]])
+  qqline(combined_df1[[n_corals]])
+}
+```
+
+```{r}
+check_response_2 <- function(total_coral_area_cm2){
+
+  print(var)
+
+  print(summary(combined_df1[[total_coral_area_cm2]]))
+
+  print(mean(combined_df1[[total_coral_area_cm2]], na.rm=TRUE))
+  print(var(combined_df1[[total_coral_area_cm2]], na.rm=TRUE))
+
+  hist(combined_df1[[total_coral_area_cm2]])
+  qqnorm(combined_df1[[total_coral_area_cm2]])
+  qqline(combined_df1[[total_coral_area_cm2]])
+}
+```
+
+```{r}
+check_response_3 <- function(mean_indiv_growth_cm2){
+
+  print(var)
+
+  print(summary(combined_df1[[mean_indiv_growth_cm2]]))
+
+  print(mean(combined_df1[[mean_indiv_growth_cm2]], na.rm=TRUE))
+  print(var(combined_df1[[mean_indiv_growth_cm2]], na.rm=TRUE))
+
+  hist(combined_df1[[mean_indiv_growth_cm2]])
+  qqnorm(combined_df1[[mean_indiv_growth_cm2]])
+  qqline(combined_df1[[mean_indiv_growth_cm2]])
+}
+```
+
+
+```{r}
+check_response_2("total_coral_area_cm2")
+check_response_3("mean_indiv_growth_cm2")
+check_response_1("n_corals")
+```
+
+## Summary Stats of Models 
+
+```{r}
+summ_stats <- function(x) {
+  c(
+    n = sum(!is.na(x)),
+    min = min(x, na.rm=TRUE),
+    q1 = quantile(x, 0.25, na.rm=TRUE),
+    median = median(x, na.rm=TRUE),
+    mean = mean(x, na.rm=TRUE),
+    q3 = quantile(x, 0.75, na.rm=TRUE),
+    max = max(x, na.rm=TRUE),
+    var = var(x, na.rm=TRUE)
+  )
+}
+
+summ_stats(combined_df1$total_coral_area_cm2)
+summ_stats(combined_df1$mean_indiv_growth_cm2)
+summ_stats(combined_df1$n_corals)
+```
+
+
+
+
+
+
+
+
+## Rescale the data
+
+
+```{r}
+combined_df2 <- combined_df1 %>%
+  mutate(across(
+    c(CCA_calcareous, Fleshy_MA, `Lobo/Peys`,
+      Scleractinian, SPAT, TAS,
+      Grazerdetritivore, Herbivore_Sc_Br),
+    scale
+  ))
+```
+
+
+
+
+
+## Creating the models before dredge
+
+## Total area using gamma glm
+```{r}
+library(lme4)
+
+full_area <- glmer(
+  total_coral_area_cm2 ~ Treatment +
+  Year + 
+  CCA_calcareous +
+  Fleshy_MA +
+  `Lobo/Peys` +
+  Scleractinian +
+  SPAT +
+  TAS +
+  Grazerdetritivore +
+  Herbivore_Sc_Br +
+  (1|Block),
+  data = combined_df2,
+  family = Gamma(link="log")
+)
+```
+
+
+## Coral Growth using gaussian mixed model (simplest), maybe switch to gamma if residuals dont fit 
+
+```{r}
+full_growth <- lmer(
+  mean_indiv_growth_cm2 ~ Treatment +
+  Year +
+  CCA_calcareous +
+  Fleshy_MA +
+  `Lobo/Peys` +
+  Scleractinian +
+  SPAT +
+  TAS +
+  Grazerdetritivore +
+  Herbivore_Sc_Br +
+  (1|Block),
+  data = combined_df2
+)
+```
+
+
+## Density of corals using generalized linear model with a negative binomial family 
+
+```{r}
+full_n <- glmer.nb(
+  n_corals ~ Treatment +
+  Year + 
+  CCA_calcareous +
+  Fleshy_MA +
+  `Lobo/Peys` +
+  Scleractinian +
+  SPAT +
+  TAS +
+  Grazerdetritivore +
+  Herbivore_Sc_Br +
+  (1|Block),
+  data = combined_df2
+)
+```
+
+
+## Maybe need to scale variables and test for correlation for predictors 
+
+## Dredge 
+
+```{r, warning=FALSE, message=FALSE}
+library(MuMIn)
+
+options(na.action = "na.fail")
+
+dredge(full_area, fixed = "Year")
+#dredge(full_growth)
+#dredge(full_n)
+```
+
+
+
+```{r}
+top_models <- get.models(dredge_area, subset = delta < 2)
+
+avg_model <- model.avg(top_models)
+
+summary(avg_model)
+```
+
+```{r}
+sw(avg_model)
+```
+
+
+
+
+
+
+
+
+
+```{r, warning=FALSE, message=FALSE}
+library(MuMIn)
+
+options(na.action = "na.fail")
+
+#dredge(full_area)
+dredge(full_growth, fixed = "Year")
+#dredge(full_n)
+```
+
+
+
+
+```{r}
+library(MuMIn)
+
+options(na.action = "na.fail")
+
+#dredge(full_area)
+#dredge(full_growth)
+dredge(full_n, fixed ="Year")
+```

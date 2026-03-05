@@ -1,5 +1,239 @@
 ---
-title: "Total Coral Area 2"
+title: "Total Coral Area"
 format: html
 ---
+
+
+```{r}
+library(tidyverse)
+library(readxl)
+
+df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/Coral Table Final.xlsx")
+
+df <- df %>%
+  mutate(
+     Year = factor(Year),
+    Treatment = factor(
+      Treatment,
+      levels = c("1x1", "2x2", "TopOnly", "Con")
+    )
+  )
+
+df <- df %>%
+  rename(Coral_Species = `Coral Species`)
+
+total_area <- df %>%
+  group_by(Block, Treatment, 'Coral Species', Year) %>%
+  summarise(
+    total_coral_area_cm2 = sum(Size, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+```
+
+
+
+## Create total area data set treating block as a replicate (combine)
+```{r}
+
+total_area_norep <- total_area %>%
+  group_by(Treatment, Year) %>%
+  summarise(
+    mean_total_coral_area_cm2 = mean(total_coral_area_cm2, na.rm = TRUE),
+    se_total_coral_area_cm2   = sd(total_coral_area_cm2, na.rm = TRUE) /
+                                sqrt(n()),
+    n_blocks = n(),
+    .groups = "drop"
+  )
+
+```
+
+
+
+```{r}
+dodge <- position_dodge(width = 0.4)
+
+ggplot(total_area_norep,
+       aes(x = Year,
+           y = mean_total_coral_area_cm2,
+           color = Treatment,
+           group = Treatment)) +
+  geom_line(alpha = 0.8, position = dodge) +
+  geom_point(size = 2, position = dodge) +
+  geom_errorbar(
+    aes(
+      ymin = mean_total_coral_area_cm2 - se_total_coral_area_cm2,
+      ymax = mean_total_coral_area_cm2 + se_total_coral_area_cm2
+    ),
+    width = 0.15,
+    alpha = 0.6,
+    position = dodge
+  ) +
+  scale_color_manual(
+    values = c(
+      "1x1"     = "darkorchid4",
+      "2x2"     = "darkred",
+      "TopOnly" = "deepskyblue2",
+      "Con"     = "black"
+    ),
+    labels = c(
+      "1x1"     = "Small Inclusion",
+      "2x2"     = "Medium Inclusion",
+      "TopOnly" = "Large Inclusion",
+      "Con"     = "Control"
+    )
+  ) +
+  labs(
+    y = expression("Total coral area (cm"^2*")"),
+    x = "Year",
+    title = "Total coral area through time"
+  ) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+setwd("C:/Users/brody/Desktop/Brody Thesis Project/Figures")
+ggsave("Total Coral Area.jpg", width = 8, height = 5) 
+```
+
+
+
+
+
+
+```{r}
+total_area_norep <- total_area_norep %>%
+  mutate(Year = as.integer(as.character(Year)))
+
+```
+
+```{r}
+
+pre_2022 <- total_area_norep %>% 
+  filter(Year <= 2022)
+
+post_2022 <- total_area_norep %>% 
+  filter(Year >= 2022)
+
+```
+
+```{r}
+year_levels <- sort(unique(total_area_norep$Year))
+
+total_area_norep <- total_area_norep %>%
+  mutate(Year_f = factor(Year, levels = year_levels))
+
+pre_2022  <- pre_2022  %>% mutate(Year_f = factor(Year, levels = year_levels))
+post_2022 <- post_2022 %>% mutate(Year_f = factor(Year, levels = year_levels))
+
+```
+
+
+```{r}
+# 1) make Year numeric
+total_area_norep <- total_area_norep %>%
+  mutate(Year = as.integer(as.character(Year)))
+
+# 2) split at 2022 (solid through 2022; dashed starting 2023)
+pre_2022  <- total_area_norep %>% filter(Year <= 2022)
+post_2022 <- total_area_norep %>% filter(Year >= 2022)  # keep 2022 so the dashed connects
+
+years <- sort(unique(total_area_norep$Year))
+
+```
+
+
+```{r}
+dodge <- position_dodge(width = 0.4)
+
+ggplot(total_area_norep,
+       aes(x = Year,
+           y = mean_total_coral_area_cm2,
+           color = Treatment,
+           group = Treatment)) +
+
+  ## solid line up to 2023
+  geom_line(
+    data = pre_2022,
+    alpha = 0.8,
+    position = dodge
+  ) +
+
+  ## dashed line after 2023
+  geom_line(
+    data = post_2022,
+    linetype = "dashed",
+    alpha = 0.8,
+    position = dodge
+  ) +
+
+  geom_point(size = 2, position = dodge) +
+
+  geom_errorbar(
+    aes(
+      ymin = mean_total_coral_area_cm2 - se_total_coral_area_cm2,
+      ymax = mean_total_coral_area_cm2 + se_total_coral_area_cm2
+    ),
+    width = 0.15,
+    alpha = 0.6,
+    position = dodge
+  ) +
+  scale_x_continuous(breaks = years)+
+
+
+  scale_color_manual(
+    values = c(
+      "1x1"     = "darkorchid4",
+      "2x2"     = "darkred",
+      "TopOnly" = "deepskyblue2",
+      "Con"     = "black"
+    ),
+    labels = c(
+      "1x1"     = "Small Inclusion",
+      "2x2"     = "Medium Inclusion",
+      "TopOnly" = "Large Inclusion",
+      "Con"     = "Control"
+    )
+  ) +
+
+  labs(
+    y = expression("Total coral area (cm"^2*")"),
+    x = "Year",
+    title = "Total coral area through time"
+  ) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )+
+  annotate(
+  "text",
+  x = 2021.5,
+  y = 1500,
+  label = "Shift Cages Up 1 Level",
+  hjust = 0,
+  size = 3
+)
+setwd("C:/Users/brody/Desktop/Brody Thesis Project/Figures")
+ggsave("Total Coral Area Shift.jpg", width = 8, height = 5) 
+
+```
+
+
+```{r}
+library(writexl)
+
+write_xlsx(
+  total_area,
+  "C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/total_area.xlsx"
+)
+
+```
+
+
+
+
+
+
 

@@ -116,6 +116,16 @@ ggsave("Average Coral Growth vs Ind.jpg", width = 8, height = 8)
 
 
 
+```{r}
+library(writexl)
+
+write_xlsx(
+  mean_indiv_growth_agg,
+  "C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/average_growth.xlsx"
+)
+
+
+```
 
 
 
