@@ -101,25 +101,339 @@ r2_table
 ```
 
 
+```{r}
+library(lmerTest)
+library(performance)
+
+# Refit full model with lmerTest to get p-values
+model_full <- lmer(n_corals ~ Treatment + Year + (1|Block),
+                   data = mean_indiv_growth_agg)
+
+anova_full <- anova(model_full)
+anova_full
+```
+
+
+```{r}
+r2_full <- r2(model_full)
+r2_density <- r2(model_density_only)
+r2_treatment <- r2(model_treatment_only)
+```
+
+```{r}
+# Full model p-values
+p_treatment_full <- anova_full["Treatment", "Pr(>F)"]
+p_year_full <- anova_full["Year", "Pr(>F)"]
+
+# Density-only model
+anova_density <- anova(model_density_only)
+p_year_density <- anova_density["Year", "Pr(>F)"]
+
+# Treatment-only model
+anova_treatment <- anova(model_treatment_only)
+p_treatment_only <- anova_treatment["Treatment", "Pr(>F)"]
+```
+
+
+```{r}
+model_table <- data.frame(
+  Model = c("Density only (Year)",
+            "Treatment only",
+            "Full model"),
+  Treatment_p = c(NA,
+                  p_treatment_only,
+                  p_treatment_full),
+  Year_p = c(p_year_density,
+             NA,
+             p_year_full),
+  Marginal_R2 = c(r2_density$R2_marginal,
+                  r2_treatment$R2_marginal,
+                  r2_full$R2_marginal),
+  Conditional_R2 = c(r2_density$R2_conditional,
+                     r2_treatment$R2_conditional,
+                     r2_full$R2_conditional)
+)
+
+model_table
+```
+
+
+```{r}
+library(lme4)
+library(lmerTest)
+library(performance)
+
+# (assuming you already fit these; included here for completeness)
+model_full <- lmer(n_corals ~ Treatment + Year + (1|Block),
+                   data = mean_indiv_growth_agg)
+
+model_density_only <- lmer(n_corals ~ Year + (1|Block),
+                           data = mean_indiv_growth_agg)
+
+model_treatment_only <- lmer(n_corals ~ Treatment + (1|Block),
+                             data = mean_indiv_growth_agg)
+
+# R2
+r2_full <- r2(model_full)
+r2_density <- r2(model_density_only)
+r2_treatment <- r2(model_treatment_only)
+
+# ANOVA tables (Type III + Satterthwaite p-values because of lmerTest)
+a_full <- anova(model_full)
+a_density <- anova(model_density_only)
+a_treat <- anova(model_treatment_only)
+
+# Pull single p-values (these are scalars)
+p_treat_full <- a_full["Treatment", "Pr(>F)"]
+p_year_full  <- a_full["Year", "Pr(>F)"]
+
+p_year_density <- a_density["Year", "Pr(>F)"]
+p_treat_only   <- a_treat["Treatment", "Pr(>F)"]
+
+# Optional stars
+star <- function(p) {
+  ifelse(is.na(p), NA,
+         ifelse(p < 0.001, "***",
+                ifelse(p < 0.01, "**",
+                       ifelse(p < 0.05, "*", "ns"))))
+}
+
+# Build table
+model_table <- data.frame(
+  Model = c("Density only (Year)", "Treatment only", "Full model"),
+  Treatment_p = c(NA_real_, p_treat_only, p_treat_full),
+  Treatment_sig = c(NA, star(p_treat_only), star(p_treat_full)),
+  Year_p = c(p_year_density, NA_real_, p_year_full),
+  Year_sig = c(star(p_year_density), NA, star(p_year_full)),
+  Marginal_R2 = c(r2_density$R2_marginal,
+                  r2_treatment$R2_marginal,
+                  r2_full$R2_marginal),
+  Conditional_R2 = c(r2_density$R2_conditional,
+                     r2_treatment$R2_conditional,
+                     r2_full$R2_conditional),
+  row.names = NULL
+)
+
+model_table
+```
+
+
+
+```{r}
+library(glmmTMB)
+library(performance)
+
+model_full_nb <- glmmTMB(
+  n_corals ~ Treatment + Year + (1|Block),
+  data = mean_indiv_growth_agg,
+  family = nbinom2
+)
+
+model_year_nb <- glmmTMB(
+  n_corals ~ Year + (1|Block),
+  data = mean_indiv_growth_agg,
+  family = nbinom2
+)
+
+model_treat_nb <- glmmTMB(
+  n_corals ~ Treatment + (1|Block),
+  data = mean_indiv_growth_agg,
+  family = nbinom2
+)
+```
+
+```{r}
+check_overdispersion(model_full_nb)
+```
+
+
+```{r}
+library(glmmTMB)
+library(performance)
+library(car)
+library(broom.mixed)
+
+# ----------------------------
+# Fit NB GLMMs (random intercept for Block)
+# ----------------------------
+m_full_nb <- glmmTMB(
+  n_corals ~ Treatment + Year + (1 | Block),
+  data = mean_indiv_growth_agg,
+  family = nbinom2
+)
+
+m_year_nb <- glmmTMB(
+  n_corals ~ Year + (1 | Block),
+  data = mean_indiv_growth_agg,
+  family = nbinom2
+)
+
+m_treat_nb <- glmmTMB(
+  n_corals ~ Treatment + (1 | Block),
+  data = mean_indiv_growth_agg,
+  family = nbinom2
+)
+
+# ----------------------------
+# R2 (Nakagawa) for GLMMs
+# ----------------------------
+r2_full  <- r2(m_full_nb)
+r2_year  <- r2(m_year_nb)
+r2_treat <- r2(m_treat_nb)
+
+# ----------------------------
+# Type III tests (Wald Chi-square) to get p-values
+# ----------------------------
+a_full  <- car::Anova(m_full_nb,  type = 3)
+a_year  <- car::Anova(m_year_nb,  type = 3)
+a_treat <- car::Anova(m_treat_nb, type = 3)
+
+# Helper: robust p-value extraction
+get_p <- function(a, term) {
+  if (term %in% rownames(a) && "Pr(>Chisq)" %in% colnames(a)) {
+    as.numeric(a[term, "Pr(>Chisq)"])
+  } else {
+    NA_real_
+  }
+}
+
+# Pull p-values
+p_treat_full <- get_p(a_full,  "Treatment")
+p_year_full  <- get_p(a_full,  "Year")
+
+p_year_only  <- get_p(a_year,  "Year")
+p_treat_only <- get_p(a_treat, "Treatment")
+
+# Optional stars
+star <- function(p) {
+  ifelse(is.na(p), NA_character_,
+         ifelse(p < 0.001, "***",
+                ifelse(p < 0.01, "**",
+                       ifelse(p < 0.05, "*", "ns"))))
+}
+
+# ----------------------------
+# Build the same summary table
+# ----------------------------
+model_table_nb <- data.frame(
+  Model = c("Density only (Year)", "Treatment only", "Full model"),
+  Treatment_p = c(NA_real_, p_treat_only, p_treat_full),
+  Treatment_sig = c(NA_character_, star(p_treat_only), star(p_treat_full)),
+  Year_p = c(p_year_only, NA_real_, p_year_full),
+  Year_sig = c(star(p_year_only), NA_character_, star(p_year_full)),
+  Marginal_R2 = c(r2_year$R2_marginal, r2_treat$R2_marginal, r2_full$R2_marginal),
+  Conditional_R2 = c(r2_year$R2_conditional, r2_treat$R2_conditional, r2_full$R2_conditional),
+  row.names = NULL
+)
+
+model_table_nb
+```
+
+
+
+
+```{r}
+library(glmmTMB)
+library(performance)
+
+# ----------------------------
+# Fit NB GLMMs (random intercept for Block)
+# ----------------------------
+# 
+mean_indiv_growth_agg$tret_factor <- factor(mean_indiv_growth_agg$Treatment, levels = c("Con", "TopOnly", "2x2", "1x1"))
+
+m_full_nb <- glmmTMB(
+  n_corals ~ tret_factor + Year + (1 | Block),
+  data = mean_indiv_growth_agg,
+  family = nbinom2
+)
+
+m_year_nb <- glmmTMB(
+  n_corals ~ Year + (1 | Block),
+  data = mean_indiv_growth_agg,
+  family = nbinom2
+)
+
+m_treat_nb <- glmmTMB(
+  n_corals ~ tret_factor + (1 | Block),
+  data = mean_indiv_growth_agg,
+  family = nbinom2
+)
+
+# ----------------------------
+# R2 (Nakagawa) for GLMMs
+# ----------------------------
+r2_full  <- r2(m_full_nb)
+r2_year  <- r2(m_year_nb)
+r2_treat <- r2(m_treat_nb)
+
+# ----------------------------
+# LRT p-values using drop1()
+# ----------------------------
+d_full  <- drop1(m_full_nb,  test = "Chisq")
+d_year  <- drop1(m_year_nb,  test = "Chisq")
+d_treat <- drop1(m_treat_nb, test = "Chisq")
+
+# Helper: robust p extraction from drop1 output
+get_p_drop1 <- function(d, term) {
+  if (term %in% rownames(d)) {
+    # drop1 uses Pr(>Chi) as the p-value column
+    as.numeric(d[term, "Pr(>Chi)"])
+  } else {
+    NA_real_
+  }
+}
+
+# Pull single p-values
+p_treat_full <- get_p_drop1(d_full,  "tret_factor")
+p_year_full  <- get_p_drop1(d_full,  "Year")
+
+p_year_only  <- get_p_drop1(d_year,  "Year")
+p_treat_only <- get_p_drop1(d_treat, "tret_factor")
+
+# Optional stars
+star <- function(p) {
+  ifelse(is.na(p), NA_character_,
+         ifelse(p < 0.001, "***",
+                ifelse(p < 0.01, "**",
+                       ifelse(p < 0.05, "*", "ns"))))
+}
+
+# ----------------------------
+# Build summary table
+# ----------------------------
+model_table_nb_lrt <- data.frame(
+  Model = c("Density only (Year)", "Treatment only", "Full model"),
+  Treatment_p = c(NA_real_, p_treat_only, p_treat_full),
+  Treatment_sig = c(NA_character_, star(p_treat_only), star(p_treat_full)),
+  Year_p = c(p_year_only, NA_real_, p_year_full),
+  Year_sig = c(star(p_year_only), NA_character_, star(p_year_full)),
+  Marginal_R2 = c(r2_year$R2_marginal, r2_treat$R2_marginal, r2_full$R2_marginal),
+  Conditional_R2 = c(r2_year$R2_conditional, r2_treat$R2_conditional, r2_full$R2_conditional),
+  row.names = NULL
+)
+
+model_table_nb_lrt
+```
 
 
 
 
 
 
+```{r}
+library(tidyverse)
+library(performance)
 
+summary(total_area$total_coral_area_cm2)
 
+hist(total_area$total_coral_area_cm2, breaks = 20)
 
+qqnorm(total_area$total_coral_area_cm2)
+qqline(total_area$total_coral_area_cm2)
 
-
-
-
-
-
-
-
-
-
+check_distribution(total_area$total_coral_area_cm2)
+```
 
 
 
