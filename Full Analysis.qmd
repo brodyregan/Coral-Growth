@@ -285,6 +285,15 @@ summary(avg_model)
 sw(avg_model)
 ```
 
+```{r}
+best_area <- get.models(dredge_area, 1)[[1]]
+
+library(DHARMa)
+
+sim_res <- simulateResiduals(best_area)
+
+plot(sim_res)
+```
 
 
 
@@ -299,9 +308,28 @@ library(MuMIn)
 options(na.action = "na.fail")
 
 #dredge(full_area)
-dredge(full_growth, fixed = "Year")
+dredge_growth <- dredge(full_growth, fixed = "Year")
 #dredge(full_n)
 ```
+
+
+
+
+```{r}
+top_models_growth <- get.models(dredge_growth, subset = delta < 2)
+
+avg_model_growth <- model.avg(top_models_growth)
+
+summary(avg_model_growth)
+```
+
+```{r}
+sw(avg_model_growth)
+```
+
+
+
+
 
 
 
