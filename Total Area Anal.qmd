@@ -1,0 +1,135 @@
+---
+title: "Total Area Anal"
+format: html
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(dplyr)
+library(stringr)
+
+combined_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/combined_coral_benthic_fish.xlsx")
+```
+
+```{r}
+combined_df1 <- combined_df %>%
+  filter(!Year %in% c(2018, 2024)) |> 
+   mutate(
+    Year = factor(Year),
+    Treatment = factor(Treatment),
+    Block = factor(Block)
+  )
+```
+
+```{r}
+combined_df1 <- combined_df1 %>%
+  mutate(
+    Treatment = factor(
+      Treatment,
+      levels = c("Con", "1x1", "2x2", "TopOnly")
+    )
+  )
+```
+
+
+```{r}
+combined_df2 <- combined_df1 %>%
+  mutate(across(
+    c(CCA_calcareous, Fleshy_MA, `Lobo/Peys`,
+      Scleractinian, SPAT, TAS,
+      Grazerdetritivore, Herbivore_Sc_Br),
+    scale
+  ))
+```
+
+###############################################################################################################################
+
+## Treatment and Year
+
+```{r}
+library(lme4)
+
+t1 <- glmer(
+  total_coral_area_cm2 ~ Treatment + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link="log"),
+)
+
+t2 <- glmer(
+  total_coral_area_cm2 ~ Year + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link="log"),
+)
+
+t3 <- glmer(
+  total_coral_area_cm2 ~ Treatment + Year + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link="log"),
+)
+
+t4 <- glmer(
+  total_coral_area_cm2 ~ Treatment * Year + (1 | Block),
+ data = combined_df2,
+  family = Gamma(link="log"),
+)
+
+anova(t1, t2, t3, t4)
+```
+
+
+###############################################################################################################################
+
+
+
+
+## Total area using gamma glm
+```{r}
+library(lme4)
+
+full_area <- glmer(
+  total_coral_area_cm2 ~ Treatment +
+  Year + 
+  #CCA_calcareous +
+  Fleshy_MA +
+  `Lobo/Peys` +
+  #Scleractinian +
+  SPAT +
+  TAS +
+  Grazerdetritivore +
+  Herbivore_Sc_Br +
+  (1|Block),
+  data = combined_df2,
+  family = Gamma(link="log")
+)
+```
+
+
+
+## Dredge 
+
+```{r, warning=FALSE, message=FALSE}
+library(MuMIn)
+
+options(na.action = "na.fail")
+
+dredge(full_area, fixed = "Year")
+
+#best_area <- get.models(dredge_area, 1)[[1]]
+
+#summary(dredge_area)
+#summary(best_area)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

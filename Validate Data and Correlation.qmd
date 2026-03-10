@@ -189,6 +189,88 @@ combined_df2 <- combined_df1 %>%
   ))
 ```
 
+```{r}
+library(dplyr)
+library(corrplot)
+
+# Select only numeric columns
+numeric_df <- combined_df2 %>%
+  select(where(is.numeric))
+
+# Create correlation matrix
+cor_matrix <- cor(numeric_df, use = "pairwise.complete.obs")
+
+# Plot correlation matrix
+corrplot(cor_matrix,
+         method = "color",
+         type = "upper",
+         tl.col = "black",
+         tl.srt = 45)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+library(car)
+
+full_model <- lm(
+  mean_indiv_growth_cm2 ~
+    Treatment +
+    Year +
+    CCA_calcareous +
+    Fleshy_MA +
+    `Lobo/Peys` +
+    Scleractinian +
+    SPAT +
+    TAS +
+    Grazerdetritivore +
+    Herbivore_Sc_Br,
+  data = combined_df2
+)
+
+vif(full_model)
+```
 
 
 
@@ -205,11 +287,11 @@ full_area <- glmer(
   CCA_calcareous +
   Fleshy_MA +
   `Lobo/Peys` +
-  Scleractinian +
+  #Scleractinian +
   SPAT +
   TAS +
-  Grazerdetritivore +
-  Herbivore_Sc_Br +
+  #Grazerdetritivore +
+  #Herbivore_Sc_Br +
   (1|Block),
   data = combined_df2,
   family = Gamma(link="log")
@@ -266,9 +348,14 @@ library(MuMIn)
 
 options(na.action = "na.fail")
 
-dredge(full_area, fixed = "Year")
+dredge_area <- dredge(full_area, fixed = "Year")
 #dredge(full_growth)
 #dredge(full_n)
+#
+#
+best_area <- get.models(dredge_area, 1)[[1]]
+
+summary(best_area)
 ```
 
 
@@ -308,7 +395,7 @@ library(MuMIn)
 options(na.action = "na.fail")
 
 #dredge(full_area)
-dredge_growth <- dredge(full_growth, fixed = "Year")
+dredge(full_growth, fixed = "Year")
 #dredge(full_n)
 ```
 

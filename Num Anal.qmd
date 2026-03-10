@@ -1,0 +1,112 @@
+---
+title: "Num Anal"
+format: html
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(dplyr)
+library(stringr)
+
+combined_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/combined_coral_benthic_fish.xlsx")
+```
+
+```{r}
+combined_df1 <- combined_df %>%
+  filter(!Year %in% c(2018, 2024)) |> 
+   mutate(
+    Year = factor(Year),
+    Treatment = factor(Treatment),
+    Block = factor(Block)
+  )
+```
+
+```{r}
+combined_df1 <- combined_df1 %>%
+  mutate(
+    Treatment = factor(
+      Treatment,
+      levels = c("Con", "1x1", "2x2", "TopOnly")
+    )
+  )
+```
+
+
+```{r}
+combined_df2 <- combined_df1 %>%
+  mutate(across(
+    c(CCA_calcareous, Fleshy_MA, `Lobo/Peys`,
+      Scleractinian, SPAT, TAS,
+      Grazerdetritivore, Herbivore_Sc_Br),
+    scale
+  ))
+```
+
+
+###############################################################################################################################
+
+
+## Treatment and Year
+
+```{r}
+library(lme4)
+
+n1 <- glmer.nb(
+  n_corals ~ Treatment + (1 | Block),
+  data = combined_df2
+)
+
+n2 <- glmer.nb(
+  n_corals ~ Year + (1 | Block),
+  data = combined_df2
+)
+
+n3 <- glmer.nb(
+  n_corals ~ Treatment + Year + (1 | Block),
+  data = combined_df2
+)
+
+n4 <- glmer.nb(
+  n_corals ~ Treatment * Year + (1 | Block),
+ data = combined_df2
+)
+
+anova(n1, n2, n3, n4)
+```
+
+
+###############################################################################################################################
+
+
+
+
+
+## Density of corals using generalized linear model with a negative binomial family 
+
+```{r}
+full_n <- glmer.nb(
+  n_corals ~ Treatment +
+  Year + 
+  CCA_calcareous +
+  Fleshy_MA +
+  `Lobo/Peys` +
+  #Scleractinian +
+  SPAT +
+  TAS +
+  Grazerdetritivore +
+  Herbivore_Sc_Br +
+  (1|Block),
+  data = combined_df2
+)
+```
+
+
+```{r}
+library(MuMIn)
+
+options(na.action = "na.fail")
+
+
+dredge(full_n, fixed ="Year")
+```

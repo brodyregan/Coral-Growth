@@ -343,7 +343,7 @@ library(performance)
 mean_indiv_growth_agg$tret_factor <- factor(mean_indiv_growth_agg$Treatment, levels = c("Con", "TopOnly", "2x2", "1x1"))
 
 m_full_nb <- glmmTMB(
-  n_corals ~ tret_factor + Year + (1 | Block),
+  n_corals ~ tret_factor * Year + (1 | Block),
   data = mean_indiv_growth_agg,
   family = nbinom2
 )
