@@ -10,7 +10,35 @@ library(dplyr)
 library(stringr)
 
 combined_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/combined_coral_benthic_fish.xlsx")
+
 ```
+
+
+```{r}
+library(dplyr)
+
+combined_prop <- combined_df1 %>%
+  left_join(
+    mean_prop_growth_x %>%
+      select(Year, Block, Treatment, mean_prop_growth),
+    by = c("Year", "Block", "Treatment")
+  )
+```
+
+
+```{r}
+combined_prop_1 <- combined_prop %>%
+  filter(!Year %in% c(2018, 2019, 2024)) |> 
+   mutate(
+    Year = factor(Year),
+    Treatment = factor(Treatment),
+    Block = factor(Block)
+  )
+```
+
+
+
+
 
 ```{r}
 combined_df1 <- combined_df %>%
@@ -91,7 +119,7 @@ anova(m1, m2, m3, m4)
 
 ```{r}
 full_growth <- lmer(
-  mean_indiv_growth_cm2 ~ Treatment +
+  mean_prop_growth ~ #Treatment +
   Year +
   CCA_calcareous +
   Fleshy_MA +
@@ -102,7 +130,7 @@ full_growth <- lmer(
   Grazerdetritivore +
   Herbivore_Sc_Br +
   (1|Block),
-  data = combined_df2
+  data = combined_prop_1
 )
 ```
 
@@ -111,7 +139,12 @@ library(MuMIn)
 
 options(na.action = "na.fail")
 
-dredge(full_growth, fixed = "Year")
+dredge_prop <- dredge(full_growth, fixed = "Year")
+
+best_prop <- get.models(dredge_prop, 1)[[1]]
+
+#summary(dredge_prop)
+summary(best_prop)
 ```
 
 
@@ -121,53 +154,18 @@ dredge(full_growth, fixed = "Year")
 
 
 
-```{r}
-growth_preds <- c(
-  "Treatment",
-  "Year",
-  "CCA_calcareous",
-  "Fleshy_MA",
-  "Scleractinian",
-  "Herbivore_Sc_Br"
-)
-
-growth_mod <- lmer(
-  mean_indiv_growth_cm2 ~ Treatment +
-  Year +
-  CCA_calcareous +
-  #Fleshy_MA +
-  `Lobo/Peys` +
-  #Scleractinian +
-  SPAT +
-  TAS +
-  #Grazerdetritivore +
-  #Herbivore_Sc_Br +
-  (1|Block),
-  data = combined_df2
-)
-```
-
-```{r}
-formula(growth_mod)
-summary(growth_mod)
-broom.mixed::tidy(growth_mod, effects = "fixed")
-MuMIn::r.squaredGLMM(growth_mod)
-AIC(growth_mod)
-BIC(growth_mod)
-logLik(growth_mod)
-performance::check_singularity(growth_mod)
-performance::check_normality(growth_mod)
-performance::check_heteroscedasticity(growth_mod)
-```
 
 
 ```{r}
+library(performance)
+
+
 growth_model <- lmerTest::lmer(
-  mean_indiv_growth_cm2 ~
-    Treatment +
+  mean_prop_growth ~
+    #Treatment +
     Year +
     CCA_calcareous +
-    #Fleshy_MA +
+    Fleshy_MA +
     `Lobo/Peys` +
     #Scleractinian +
     SPAT +
@@ -175,26 +173,43 @@ growth_model <- lmerTest::lmer(
     #Grazerdetritivore +
     #Herbivore_Sc_Br +
     (1|Block),
-  data = combined_df2
+  data = combined_prop_1
 )
 
 fixed_effects <- broom.mixed::tidy(growth_model, effects = "fixed")
 r2 <- MuMIn::r.squaredGLMM(growth_model)
 aic_val <- AIC(growth_model)
-#collinearity <- performance::check_collinearity(growth_model)
-#normality <- performance::check_normality(growth_model)
-#heteroscedasticity <- performance::check_heteroscedasticity(growth_model)
+collinearity <- performance::check_collinearity(growth_model)
+normality <- performance::check_normality(growth_model)
+heteroscedasticity <- performance::check_heteroscedasticity(growth_model)
 
 fixed_effects
 r2
 aic_val
-#collinearity
-#normality
-#heteroscedasticity
+collinearity
+normality
+heteroscedasticity
+
+anova(growth_model)
+
 ```
 ```{r}
-anova(growth_model)
+#| fig-height: 30
+#| fig-width: 15
+performance::check_model(growth_model)
+
+#setwd("C:/Users/brody/Desktop/Brody Thesis Project/Figures")
+#ggsave("Check Model Growth.jpg", width = 8, height = 8) 
 ```
+
+```{r}
+plot(growth_model)
+qqnorm(resid(growth_model))
+qqline(resid(growth_model))
+```
+
+
+
 
 
 

@@ -1,0 +1,66 @@
+---
+title: "Prop Growth Data Set"
+format: html
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+
+df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/Coral Table Final.xlsx")
+
+df <- df %>%
+  mutate(
+     Year = factor(Year),
+    Treatment = factor(
+      Treatment,
+      levels = c("1x1", "2x2", "TopOnly", "Con")
+    )
+  )
+
+df <- df %>%
+  rename(Coral_Species = `Coral Species`)
+
+```
+
+
+```{r}
+df_sum <- df %>%
+  group_by(Block, Treatment, Coral_Species, `Coral ID`, Year) %>%
+  summarise(
+    Size = sum(Size, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+
+```{r}
+coral_growth_x <- df_sum %>%
+  arrange(Block, Treatment, Coral_Species, `Coral ID`, Year) %>%
+  group_by(Block, Treatment, Coral_Species, `Coral ID`) %>%
+  mutate(
+    Size_live = na_if(Size, 0),
+    prev_live = lag(Size_live),
+    prop_growth = if_else(
+      !is.na(Size_live) & !is.na(prev_live) & prev_live >= min_prev,
+      (Size_live - prev_live) / prev_live,
+      NA_real_
+    )
+  ) %>%
+  ungroup() %>%
+  select(-Size_live, -prev_live)
+
+hist(coral_growth_x$prop_growth)
+hist(log(coral_growth_x$prop_growth))
+
+
+
+mean_prop_growth_x <- coral_growth_x %>%
+  group_by(Block, Treatment, Year) %>%
+  summarise(
+    mean_prop_growth = mean(prop_growth, na.rm = TRUE),
+    n_corals_present = sum(Size > 0, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+```

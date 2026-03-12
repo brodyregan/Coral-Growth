@@ -56,6 +56,39 @@ coral_growth_1 <- df_sum %>%
 
 
 ```{r}
+# coral_growth_x <- df_sum %>%
+#   arrange(Block, Treatment, Coral_Species, `Coral ID`, Year) %>%
+#   group_by(Block, Treatment, Coral_Species, `Coral ID`) %>%
+#   mutate(
+#     Size_live = na_if(Size, 0),
+#     prev_live = lag(Size_live),
+#     prop_growth = if_else(
+#       !is.na(Size_live) & !is.na(prev_live) & prev_live >= min_prev,
+#       (Size_live - prev_live) / prev_live,
+#       NA_real_
+#     )
+#   ) %>%
+#   ungroup() %>%
+#   select(-Size_live, -prev_live)
+# 
+# hist(coral_growth_x$prop_growth)
+# hist(log(coral_growth_x$prop_growth))
+# 
+# 
+# 
+# mean_prop_growth_x <- coral_growth_x %>%
+#   group_by(Block, Treatment, Year) %>%
+#   summarise(
+#     mean_prop_growth = mean(prop_growth, na.rm = TRUE),
+#     n_corals_present = sum(Size > 0, na.rm = TRUE),
+#     .groups = "drop"
+#   )
+
+```
+
+
+
+```{r}
 mean_prop_growth_1 <- coral_growth_1 %>%
   group_by(Block, Treatment, Year) %>%
   summarise(
@@ -182,5 +215,68 @@ ggplot(mean_prop_growth_no2018,
   theme_bw()
 setwd("C:/Users/brody/Desktop/Brody Thesis Project/Figures")
 ggsave("Prop Coral Growth vs Ind.jpg", width = 8, height = 8)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+# coral_growth_x <- coral_growth_x %>%
+#   mutate(
+#     Treatment = recode(Treatment,
+#       "1x1"     = "Small Inclusion",
+#       "2x2"     = "Medium Inclusion",
+#       "TopOnly" = "Large Inclusion",
+#       "Con"     = "Control"
+#     ),
+#     Treatment = factor(Treatment,
+#       levels = c("Small Inclusion",
+#                  "Medium Inclusion",
+#                  "Large Inclusion",
+#                  "Control")
+#     )
+#   )
+# 
+# ggplot(coral_growth_x,
+#        aes(x = n_corals_present,
+#            y = mean_prop_growth,
+#            color = Treatment)) +
+#   geom_hline(yintercept = 0, linetype = "dashed") +
+#   geom_point(aes(shape = Year), size = 3, alpha = 0.7) +
+#   scale_color_manual(
+#     values = c(
+#       "Small Inclusion"     = "darkorchid4",
+#       "Medium Inclusion"     = "darkred",
+#       "Large Inclusion" = "deepskyblue2",
+#       "Control"     = "black"
+#     ),
+#     labels = c(
+#       "1x1"     = "Small Inclusion",
+#       "2x2"     = "Medium Inclusion",
+#       "TopOnly" = "Large Inclusion",
+#       "Con"     = "Control"
+#     )
+#   ) +
+#   facet_wrap(~ Treatment, ncol = 1) +
+#   labs(
+#     x = "Number of coral individuals",
+#     y = expression("prop growth (cm"^2*" yr"^-1*")"),
+#     title = "Prop. coral growth vs number of individuals",
+#     color = "Treatment"
+#   ) +
+#   theme_bw()
 ```
 

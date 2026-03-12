@@ -88,9 +88,9 @@ anova(t1, t2, t3, t4)
 library(lme4)
 
 full_area <- glmer(
-  total_coral_area_cm2 ~ Treatment +
+  total_coral_area_cm2 ~ #Treatment +
   Year + 
-  #CCA_calcareous +
+  CCA_calcareous +
   Fleshy_MA +
   `Lobo/Peys` +
   #Scleractinian +
@@ -108,7 +108,7 @@ full_area <- glmer(
 
 ## Dredge 
 
-```{r, warning=FALSE, message=FALSE}
+```{r message=FALSE, warning=FALSE}
 library(MuMIn)
 
 options(na.action = "na.fail")
@@ -125,6 +125,52 @@ dredge(full_area, fixed = "Year")
 
 
 
+
+
+```{r}
+total_area_model <- lme4::glmer(
+  total_coral_area_cm2 ~
+    #Treatment +
+    Year +
+    #CCA_calcareous +
+    #Fleshy_MA +
+    #`Lobo/Peys` +
+    #Scleractinian +
+    #SPAT +
+    TAS +
+    #Grazerdetritivore +
+    #Herbivore_Sc_Br +
+    (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+
+
+fixed_effects <- broom.mixed::tidy(total_area_model, effects = "fixed")
+
+r2 <- MuMIn::r.squaredGLMM(total_area_model)
+
+aic_val <- AIC(total_area_model)
+
+collinearity <- performance::check_collinearity(total_area_model)
+
+normality <- performance::check_normality(total_area_model)
+
+heteroscedasticity <- performance::check_heteroscedasticity(total_area_model)
+
+dispersion <- performance::check_overdispersion(total_area_model)
+
+anova(total_area_model)
+
+fixed_effects
+r2
+aic_val
+collinearity
+normality
+heteroscedasticity
+dispersion
+```
 
 
 
