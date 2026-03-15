@@ -9,7 +9,19 @@ library(readxl)
 library(dplyr)
 library(stringr)
 
-combined_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/combined_coral_benthic_fish.xlsx")
+combined_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/combined_coral_benthic_fish.xlsx") |>
+  mutate(
+    Year = factor(Year),
+    Treatment = factor(
+      Treatment,
+      levels = c("Con", "1x1", "2x2", "TopOnly")
+    ),
+    Block = factor(Block)
+  )
+
+combined_dfx <- combined_df %>%
+  filter(!Year %in% c(2018))
+  
 ```
 
 ```{r}
@@ -76,6 +88,48 @@ t4 <- glmer(
 
 anova(t1, t2, t3, t4)
 ```
+
+```{r}
+area_treat_year_model <- lme4::glmer(
+  total_coral_area_cm2 ~
+    Treatment +
+    Year +
+    (1 | Block),
+  data = combined_dfx,
+  family = Gamma(link = "log")
+)
+
+fixed_effects <- broom.mixed::tidy(area_treat_year_model, effects = "fixed")
+
+r2 <- MuMIn::r.squaredGLMM(area_treat_year_model)
+
+aic_val <- AIC(area_treat_year_model)
+
+collinearity <- performance::check_collinearity(area_treat_year_model)
+
+normality <- performance::check_normality(area_treat_year_model)
+
+heteroscedasticity <- performance::check_heteroscedasticity(area_treat_year_model)
+
+dispersion <- performance::check_overdispersion(area_treat_year_model)
+
+anova(area_treat_year_model)
+
+fixed_effects
+r2
+aic_val
+collinearity
+normality
+heteroscedasticity
+dispersion
+```
+
+
+
+## Use total coral area model from other document 
+
+
+
 
 
 ###############################################################################################################################
@@ -171,6 +225,54 @@ normality
 heteroscedasticity
 dispersion
 ```
+
+
+```{r}
+library(ggeffects)
+library(ggplot2)
+
+tas_pred <- ggpredict(total_area_model, terms = "TAS")
+```
+
+
+
+```{r}
+ggplot(tas_pred, aes(x = x, y = predicted)) +
+  geom_line(size = 1.2, color = "darkblue") +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high),
+              alpha = 0.25, fill = "deepskyblue") +
+  labs(
+    x = "TAS Cover",
+    y = "Predicted Total Coral Area (cm²)",
+    title = "Effect of TAS on Total Coral Area"
+  ) +
+  theme_classic(base_size = 14)
+```
+
+
+
+```{r}
+ggplot() +
+  geom_point(data = combined_df2,
+             aes(x = TAS, y = total_coral_area_cm2),
+             alpha = 0.5, color = "gray40") +
+  geom_line(data = tas_pred,
+            aes(x = x, y = predicted),
+            color = "darkblue", size = 1.2) +
+  geom_ribbon(data = tas_pred,
+              aes(x = x, ymin = conf.low, ymax = conf.high),
+              fill = "deepskyblue", alpha = 0.25) +
+  scale_y_log10() +
+  labs(
+    x = "TAS Cover",
+    y = "Total Coral Area (cm², log scale)",
+    title = "Effect of TAS Cover on Coral Area"
+  ) +
+  theme_classic(base_size = 14)
+```
+
+
+
 
 
 

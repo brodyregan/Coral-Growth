@@ -9,7 +9,19 @@ library(readxl)
 library(dplyr)
 library(stringr)
 
-combined_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/combined_coral_benthic_fish.xlsx")
+combined_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/combined_coral_benthic_fish.xlsx") |>
+   mutate(
+    Year = factor(Year),
+    Treatment = factor(
+      Treatment,
+      levels = c("Con", "1x1", "2x2", "TopOnly")
+    ),
+    Block = factor(Block)
+  )
+
+combined_dfx <- combined_df %>%
+  filter(!Year %in% c(2018))
+
 ```
 
 ```{r}
@@ -75,6 +87,93 @@ n4 <- glmer.nb(
 anova(n1, n2, n3, n4)
 ```
 
+```{r}
+n_corals_treat_year_model <- glmer.nb(
+  n_corals ~
+    Treatment +
+    Year +
+    (1 | Block),
+  data = combined_dfx
+)
+
+fixed_effects <- broom.mixed::tidy(area_treat_year_model, effects = "fixed")
+
+r2 <- MuMIn::r.squaredGLMM(area_treat_year_model)
+
+aic_val <- AIC(area_treat_year_model)
+
+collinearity <- performance::check_collinearity(area_treat_year_model)
+
+normality <- performance::check_normality(area_treat_year_model)
+
+heteroscedasticity <- performance::check_heteroscedasticity(area_treat_year_model)
+
+dispersion <- performance::check_overdispersion(area_treat_year_model)
+
+anova(area_treat_year_model)
+
+fixed_effects
+r2
+aic_val
+collinearity
+normality
+heteroscedasticity
+dispersion
+```
+
+
+
+
+
+
+
+```{r}
+library(lme4)
+library(broom.mixed)
+library(MuMIn)
+library(performance)
+library(DHARMa)
+
+n_corals_treat_year_model <- glmer.nb(
+  n_corals ~
+    Treatment +
+    Year +
+    (1 | Block),
+  data = combined_dfx
+)
+
+fixed_effects <- broom.mixed::tidy(n_corals_treat_year_model, effects = "fixed")
+
+r2 <- MuMIn::r.squaredGLMM(n_corals_treat_year_model)
+
+aic_val <- AIC(n_corals_treat_year_model)
+
+collinearity <- performance::check_collinearity(n_corals_treat_year_model)
+
+dispersion <- performance::check_overdispersion(n_corals_treat_year_model)
+
+anova(n_corals_treat_year_model)
+
+sim_res <- DHARMa::simulateResiduals(n_corals_treat_year_model)
+plot(sim_res)
+
+fixed_effects
+r2
+aic_val
+collinearity
+dispersion
+```
+
+
+
+
+
+
+
+
+
+
+
 
 ###############################################################################################################################
 
@@ -86,7 +185,7 @@ anova(n1, n2, n3, n4)
 
 ```{r}
 full_n <- glmer.nb(
-  n_corals ~ Treatment +
+  n_corals ~ #Treatment +
   Year + 
   CCA_calcareous +
   Fleshy_MA +
@@ -109,4 +208,162 @@ options(na.action = "na.fail")
 
 
 dredge(full_n, fixed ="Year")
+
+dredge_n <- dredge(full_n, fixed = "Year")
 ```
+
+
+
+
+
+
+
+
+
+
+## Selecting Models 
+
+```{r}
+best_n_model <- get.models(dredge_n, subset = 1)[[1]]
+
+summary(best_n_model)
+
+MuMIn::r.squaredGLMM(best_n_model)
+
+performance::check_overdispersion(best_n_model)
+
+performance::check_collinearity(best_n_model)
+```
+
+
+## Competition Model 
+
+
+```{r}
+
+library(lme4)
+library(broom.mixed)
+library(MuMIn)
+library(performance)
+library(DHARMa)
+
+n_corals_model <- glmer.nb(
+  n_corals ~ #Treatment +
+  Year + 
+  #CCA_calcareous +
+  Fleshy_MA +
+  #`Lobo/Peys` +
+  #Scleractinian +
+  #SPAT +
+  TAS +
+  #Grazerdetritivore +
+  #Herbivore_Sc_Br +
+  (1|Block),
+  data = combined_df2
+)
+
+fixed_effects <- broom.mixed::tidy(n_corals_model, effects = "fixed")
+
+r2 <- MuMIn::r.squaredGLMM(n_corals_model)
+
+aic_val <- AIC(n_corals_model)
+
+collinearity <- performance::check_collinearity(n_corals_model)
+
+dispersion <- performance::check_overdispersion(n_corals_model)
+
+anova(n_corals_model)
+
+sim_res <- DHARMa::simulateResiduals(n_corals_model)
+plot(sim_res)
+
+fixed_effects
+r2
+aic_val
+collinearity
+dispersion
+```
+
+
+
+
+## Reef Builders Model 
+
+
+```{r}
+
+library(lme4)
+library(broom.mixed)
+library(MuMIn)
+library(performance)
+library(DHARMa)
+
+n_corals_model <- glmer.nb(
+  n_corals ~ #Treatment +
+  Year + 
+  CCA_calcareous +
+  #Fleshy_MA +
+  `Lobo/Peys` +
+  #Scleractinian +
+  #SPAT +
+  #TAS +
+  #Grazerdetritivore +
+  #Herbivore_Sc_Br +
+  (1|Block),
+  data = combined_df2
+)
+
+fixed_effects <- broom.mixed::tidy(n_corals_model, effects = "fixed")
+
+r2 <- MuMIn::r.squaredGLMM(n_corals_model)
+
+aic_val <- AIC(n_corals_model)
+
+collinearity <- performance::check_collinearity(n_corals_model)
+
+dispersion <- performance::check_overdispersion(n_corals_model)
+
+anova(n_corals_model)
+
+sim_res <- DHARMa::simulateResiduals(n_corals_model)
+plot(sim_res)
+
+fixed_effects
+r2
+aic_val
+collinearity
+dispersion
+```
+
+
+
+
+
+```{r}
+library(patchwork)
+
+p1 <- ggplot(combined_df2, aes(x = TAS, y = n_corals)) +
+  geom_point(size = 3, alpha = 0.7) +
+  geom_smooth(method = "glm", method.args = list(family = "poisson")) +
+  labs(x = "TAS Cover (%)", y = "Coral Colonies") +
+  theme_classic()
+
+p2 <- ggplot(combined_df2, aes(x = CCA_calcareous, y = n_corals)) +
+  geom_point(size = 3, alpha = 0.7) +
+  geom_smooth(method = "glm", method.args = list(family = "poisson")) +
+  labs(x = "CCA Cover (%)", y = "Coral Colonies") +
+  theme_classic()
+
+p3 <- ggplot(combined_df2, aes(x = `Lobo/Peys`, y = n_corals)) +
+  geom_point(size = 3, alpha = 0.7) +
+  geom_smooth(method = "glm", method.args = list(family = "poisson")) +
+  labs(x = "Lobophora / Peyssonnelia Cover (%)", y = "Coral Colonies") +
+  theme_classic()
+
+(p1 | p2 | p3)
+```
+
+
+
+
+
