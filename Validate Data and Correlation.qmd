@@ -98,14 +98,14 @@ check_response_1 <- function(n_corals){
 
   print(var)
 
-  print(summary(combined_df1[[n_corals]]))
+  print(summary(combined_df2[[n_corals]]))
 
-  print(mean(combined_df1[[n_corals]], na.rm=TRUE))
-  print(var(combined_df1[[n_corals]], na.rm=TRUE))
+  print(mean(combined_df2[[n_corals]], na.rm=TRUE))
+  print(var(combined_df2[[n_corals]], na.rm=TRUE))
 
-  hist(combined_df1[[n_corals]])
-  qqnorm(combined_df1[[n_corals]])
-  qqline(combined_df1[[n_corals]])
+  hist(combined_df2[[n_corals]])
+  qqnorm(combined_df2[[n_corals]])
+  qqline(combined_df2[[n_corals]])
 }
 ```
 
@@ -114,14 +114,14 @@ check_response_2 <- function(total_coral_area_cm2){
 
   print(var)
 
-  print(summary(combined_df1[[total_coral_area_cm2]]))
+  print(summary(combined_df2[[total_coral_area_cm2]]))
 
-  print(mean(combined_df1[[total_coral_area_cm2]], na.rm=TRUE))
-  print(var(combined_df1[[total_coral_area_cm2]], na.rm=TRUE))
+  print(mean(combined_df2[[total_coral_area_cm2]], na.rm=TRUE))
+  print(var(combined_df2[[total_coral_area_cm2]], na.rm=TRUE))
 
-  hist(combined_df1[[total_coral_area_cm2]])
-  qqnorm(combined_df1[[total_coral_area_cm2]])
-  qqline(combined_df1[[total_coral_area_cm2]])
+  hist(combined_df2[[total_coral_area_cm2]])
+  qqnorm(combined_df2[[total_coral_area_cm2]])
+  qqline(combined_df2[[total_coral_area_cm2]])
 }
 ```
 
@@ -130,14 +130,14 @@ check_response_3 <- function(mean_indiv_growth_cm2){
 
   print(var)
 
-  print(summary(combined_df1[[mean_indiv_growth_cm2]]))
+  print(summary(combined_df2[[mean_indiv_growth_cm2]]))
 
-  print(mean(combined_df1[[mean_indiv_growth_cm2]], na.rm=TRUE))
-  print(var(combined_df1[[mean_indiv_growth_cm2]], na.rm=TRUE))
+  print(mean(combined_df2[[mean_indiv_growth_cm2]], na.rm=TRUE))
+  print(var(combined_df2[[mean_indiv_growth_cm2]], na.rm=TRUE))
 
-  hist(combined_df1[[mean_indiv_growth_cm2]])
-  qqnorm(combined_df1[[mean_indiv_growth_cm2]])
-  qqline(combined_df1[[mean_indiv_growth_cm2]])
+  hist(combined_df2[[mean_indiv_growth_cm2]])
+  qqnorm(combined_df2[[mean_indiv_growth_cm2]])
+  qqline(combined_df2[[mean_indiv_growth_cm2]])
 }
 ```
 

@@ -84,7 +84,7 @@ n4 <- glmer.nb(
  data = combined_df2
 )
 
-anova(n1, n2, n3, n4)
+anova(n1, n2, n3, n4, Type = "III")
 ```
 
 ```{r}
@@ -93,32 +93,33 @@ n_corals_treat_year_model <- glmer.nb(
     Treatment +
     Year +
     (1 | Block),
-  data = combined_dfx
+  data = combined_df2
 )
 
-fixed_effects <- broom.mixed::tidy(area_treat_year_model, effects = "fixed")
+# Fixed effects
+broom.mixed::tidy(n_corals_treat_year_model, effects = "fixed")
 
-r2 <- MuMIn::r.squaredGLMM(area_treat_year_model)
+# R2
+MuMIn::r.squaredGLMM(n_corals_treat_year_model)
 
-aic_val <- AIC(area_treat_year_model)
+# AIC
+AIC(n_corals_treat_year_model)
 
-collinearity <- performance::check_collinearity(area_treat_year_model)
+# Collinearity
+performance::check_collinearity(n_corals_treat_year_model)
 
-normality <- performance::check_normality(area_treat_year_model)
+# Overdispersion
+performance::check_overdispersion(n_corals_treat_year_model)
 
-heteroscedasticity <- performance::check_heteroscedasticity(area_treat_year_model)
+# DHARMa diagnostics (IMPORTANT)
+library(DHARMa)
+sim_res <- simulateResiduals(n_corals_treat_year_model)
+plot(sim_res)
+testUniformity(sim_res)
+testDispersion(sim_res)
 
-dispersion <- performance::check_overdispersion(area_treat_year_model)
-
-anova(area_treat_year_model)
-
-fixed_effects
-r2
-aic_val
-collinearity
-normality
-heteroscedasticity
-dispersion
+# Proper ANOVA
+car::Anova(n_corals_treat_year_model, type = "III")
 ```
 
 
@@ -167,7 +168,15 @@ dispersion
 
 
 
-
+```{r}
+library(emmeans)
+library(multcomp)
+library(multcompView)
+emm_response <- emmeans(n_corals_treat_year_model, ~ Treatment, type = "response")
+emm_response
+pairs(emm_response)
+cld(emm_response, Letters = letters)
+```
 
 
 
@@ -256,8 +265,8 @@ n_corals_model <- glmer.nb(
   #Scleractinian +
   #SPAT +
   TAS +
-  #Grazerdetritivore +
-  #Herbivore_Sc_Br +
+  Grazerdetritivore +
+  Herbivore_Sc_Br +
   (1|Block),
   data = combined_df2
 )

@@ -1,0 +1,278 @@
+---
+title: "Total Area Anal P.2"
+format: html
+---
+
+---
+title: "Total Area Anal"
+format: html
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(dplyr)
+library(stringr)
+
+combined_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/combined_coral_benthic_fish.xlsx") |>
+  mutate(
+    Year = factor(Year),
+    Treatment = factor(
+      Treatment,
+      levels = c("Con", "1x1", "2x2", "TopOnly")
+    ),
+    Block = factor(Block)
+  )
+
+combined_dfx <- combined_df %>%
+  filter(!Year %in% c(2018, 2019, 2020, 2021, 2022))
+  
+```
+
+
+```{r}
+combined_dfx <- combined_dfx %>%
+  mutate(across(
+    c(CCA_calcareous, Fleshy_MA, `Lobo/Peys`,
+      Scleractinian, SPAT, TAS,
+      Grazerdetritivore, Herbivore_Sc_Br),
+    scale
+  ))
+```
+
+###############################################################################################################################
+
+## Treatment and Year
+
+```{r}
+library(lme4)
+
+t1 <- glmer(
+  total_coral_area_cm2 ~ Treatment + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link="log"),
+)
+
+t2 <- glmer(
+  total_coral_area_cm2 ~ Year + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link="log"),
+)
+
+t3 <- glmer(
+  total_coral_area_cm2 ~ Treatment + Year + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link="log"),
+)
+
+t4 <- glmer(
+  total_coral_area_cm2 ~ Treatment * Year + (1 | Block),
+ data = combined_df2,
+  family = Gamma(link="log")
+)
+
+anova(t1, t2, t3, t4)
+```
+
+```{r}
+area_treat_year_model <- lme4::glmer(
+  total_coral_area_cm2 ~
+    Treatment +
+    Year +
+    (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+fixed_effects <- broom.mixed::tidy(area_treat_year_model, effects = "fixed")
+
+r2 <- MuMIn::r.squaredGLMM(area_treat_year_model)
+
+aic_val <- AIC(area_treat_year_model)
+
+collinearity <- performance::check_collinearity(area_treat_year_model)
+
+normality <- performance::check_normality(area_treat_year_model)
+
+heteroscedasticity <- performance::check_heteroscedasticity(area_treat_year_model)
+
+dispersion <- performance::check_overdispersion(area_treat_year_model)
+
+anova(area_treat_year_model)
+
+fixed_effects
+r2
+aic_val
+collinearity
+normality
+heteroscedasticity
+dispersion
+
+
+library(DHARMa)
+
+sim_res <- simulateResiduals(area_treat_year_model)
+
+plot(sim_res)
+testUniformity(sim_res)
+testDispersion(sim_res)
+```
+
+
+
+## Use total coral area model from other document 
+
+
+
+
+
+###############################################################################################################################
+
+
+
+
+## Total area using gamma glm
+```{r}
+library(lme4)
+
+full_area_2 <- glmer(
+  total_coral_area_cm2 ~ #Treatment +
+  Year + 
+  CCA_calcareous +
+  Fleshy_MA +
+  `Lobo/Peys` +
+  #Scleractinian +
+  SPAT +
+  TAS +
+  #Grazerdetritivore +
+  #Herbivore_Sc_Br +
+  (1|Block),
+  data = combined_dfx,
+  family = Gamma(link="log")
+)
+```
+
+
+
+## Dredge 
+
+```{r message=FALSE, warning=FALSE}
+library(MuMIn)
+
+options(na.action = "na.fail")
+
+dredge(full_area_2, fixed = "Year")
+
+#best_area <- get.models(dredge_area, 1)[[1]]
+
+#summary(dredge_area)
+#summary(best_area)
+```
+
+
+
+
+
+
+
+```{r}
+total_area_model_2 <- lme4::glmer(
+  total_coral_area_cm2 ~
+    #Treatment +
+    Year +
+    #CCA_calcareous +
+    #Fleshy_MA +
+    #`Lobo/Peys` +
+    #Scleractinian +
+    #SPAT +
+    TAS +
+    #Grazerdetritivore +
+    #Herbivore_Sc_Br +
+    (1 | Block),
+  data = combined_dfx,
+  family = Gamma(link = "log")
+)
+
+
+
+fixed_effects <- broom.mixed::tidy(total_area_model, effects = "fixed")
+
+r2 <- MuMIn::r.squaredGLMM(total_area_model)
+
+aic_val <- AIC(total_area_model)
+
+collinearity <- performance::check_collinearity(total_area_model)
+
+normality <- performance::check_normality(total_area_model)
+
+heteroscedasticity <- performance::check_heteroscedasticity(total_area_model)
+
+dispersion <- performance::check_overdispersion(total_area_model)
+
+anova(total_area_model)
+
+fixed_effects
+r2
+aic_val
+collinearity
+normality
+heteroscedasticity
+dispersion
+```
+
+
+```{r}
+library(ggeffects)
+library(ggplot2)
+
+tas_pred <- ggpredict(total_area_model, terms = "TAS")
+```
+
+
+
+```{r}
+ggplot(tas_pred, aes(x = x, y = predicted)) +
+  geom_line(size = 1.2, color = "darkblue") +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high),
+              alpha = 0.25, fill = "deepskyblue") +
+  labs(
+    x = "TAS Cover",
+    y = "Predicted Total Coral Area (cm²)",
+    title = "Effect of TAS on Total Coral Area"
+  ) +
+  theme_classic(base_size = 14)
+```
+
+
+
+```{r}
+ggplot() +
+  geom_point(data = combined_df2,
+             aes(x = TAS, y = total_coral_area_cm2, color = Treatment),
+             alpha = 0.5) +
+  geom_line(data = tas_pred,
+            aes(x = x, y = predicted),
+            color = "darkblue", size = 1.2) +
+  geom_ribbon(data = tas_pred,
+              aes(x = x, ymin = conf.low, ymax = conf.high),
+              fill = "deepskyblue", alpha = 0.25) +
+  scale_y_log10() +
+  facet_wrap(~Year)+
+  labs(
+    x = "TAS Cover",
+    y = "Total Coral Area (cm², log scale)",
+    title = "Effect of TAS Cover on Coral Area"
+  ) +
+  theme_classic(base_size = 14)
+```
+
+
+
+
+
+
+
+
+
+
+

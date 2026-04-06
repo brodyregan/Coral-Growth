@@ -19,29 +19,12 @@ combined_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets
     Block = factor(Block)
   )
 
-combined_dfx <- combined_df %>%
-  filter(!Year %in% c(2018))
-  
+
 ```
 
 ```{r}
 combined_df1 <- combined_df %>%
-  filter(!Year %in% c(2018, 2024)) |> 
-   mutate(
-    Year = factor(Year),
-    Treatment = factor(Treatment),
-    Block = factor(Block)
-  )
-```
-
-```{r}
-combined_df1 <- combined_df1 %>%
-  mutate(
-    Treatment = factor(
-      Treatment,
-      levels = c("Con", "1x1", "2x2", "TopOnly")
-    )
-  )
+  filter(!Year %in% c(2018, 2023, 2024))
 ```
 
 
@@ -83,7 +66,7 @@ t3 <- glmer(
 t4 <- glmer(
   total_coral_area_cm2 ~ Treatment * Year + (1 | Block),
  data = combined_df2,
-  family = Gamma(link="log"),
+  family = Gamma(link="log")
 )
 
 anova(t1, t2, t3, t4)
@@ -95,7 +78,7 @@ area_treat_year_model <- lme4::glmer(
     Treatment +
     Year +
     (1 | Block),
-  data = combined_dfx,
+  data = combined_df2,
   family = Gamma(link = "log")
 )
 
@@ -107,13 +90,10 @@ aic_val <- AIC(area_treat_year_model)
 
 collinearity <- performance::check_collinearity(area_treat_year_model)
 
-normality <- performance::check_normality(area_treat_year_model)
-
-heteroscedasticity <- performance::check_heteroscedasticity(area_treat_year_model)
 
 dispersion <- performance::check_overdispersion(area_treat_year_model)
 
-anova(area_treat_year_model)
+car::Anova(area_treat_year_model, type = "III")
 
 fixed_effects
 r2
@@ -122,7 +102,34 @@ collinearity
 normality
 heteroscedasticity
 dispersion
+
+
+library(DHARMa)
+
+sim_res <- simulateResiduals(area_treat_year_model)
+
+plot(sim_res)
+testUniformity(sim_res)
+testDispersion(sim_res)
 ```
+
+
+
+
+
+
+
+```{r}
+library(emmeans)
+library(multcomp)
+library(multcompView)
+emm_response <- emmeans(area_treat_year_model, ~ Treatment, type = "response")
+emm_response
+pairs(emm_response)
+cld(emm_response, Letters = letters)
+```
+
+
 
 
 
@@ -201,29 +208,57 @@ total_area_model <- lme4::glmer(
 
 
 
-fixed_effects <- broom.mixed::tidy(total_area_model, effects = "fixed")
+# fixed_effects <- broom.mixed::tidy(total_area_model, effects = "fixed")
+# 
+# r2 <- MuMIn::r.squaredGLMM(total_area_model)
+# 
+# aic_val <- AIC(total_area_model)
+# 
+# collinearity <- performance::check_collinearity(total_area_model)
+# 
+# normality <- performance::check_normality(total_area_model)
+# 
+# heteroscedasticity <- performance::check_heteroscedasticity(total_area_model)
+# 
+# dispersion <- performance::check_overdispersion(total_area_model)
+# 
+# anova(total_area_model)
+# 
+# fixed_effects
+# r2
+# aic_val
+# collinearity
+# normality
+# heteroscedasticity
+# dispersion
 
-r2 <- MuMIn::r.squaredGLMM(total_area_model)
 
-aic_val <- AIC(total_area_model)
 
-collinearity <- performance::check_collinearity(total_area_model)
 
-normality <- performance::check_normality(total_area_model)
+# Fixed effects
+broom.mixed::tidy(total_area_model, effects = "fixed")
 
-heteroscedasticity <- performance::check_heteroscedasticity(total_area_model)
+# R2
+MuMIn::r.squaredGLMM(total_area_model)
 
-dispersion <- performance::check_overdispersion(total_area_model)
+# AIC
+AIC(total_area_model)
 
-anova(total_area_model)
+# Collinearity
+performance::check_collinearity(total_area_model)
 
-fixed_effects
-r2
-aic_val
-collinearity
-normality
-heteroscedasticity
-dispersion
+## Dispersion Test
+performance::check_overdispersion(total_area_model)
+
+# Residual diagnostics (IMPORTANT)
+library(DHARMa)
+sim_res <- simulateResiduals(total_area_model)
+plot(sim_res)
+testUniformity(sim_res)
+testDispersion(sim_res)
+
+# Proper significance test
+car::Anova(total_area_model, type = "III")
 ```
 
 
@@ -231,7 +266,7 @@ dispersion
 library(ggeffects)
 library(ggplot2)
 
-tas_pred <- ggpredict(total_area_model, terms = "TAS")
+tas_pred <- ggpredict(total_area_model, terms = c("TAS", "Year"))
 ```
 
 
@@ -254,21 +289,25 @@ ggplot(tas_pred, aes(x = x, y = predicted)) +
 ```{r}
 ggplot() +
   geom_point(data = combined_df2,
-             aes(x = TAS, y = total_coral_area_cm2),
-             alpha = 0.5, color = "gray40") +
+             aes(x = TAS, y = total_coral_area_cm2, color = Treatment),
+             alpha = 0.5) +
   geom_line(data = tas_pred,
             aes(x = x, y = predicted),
-            color = "darkblue", size = 1.2) +
+            color = "darkblue", linewidth = 1.2) +
   geom_ribbon(data = tas_pred,
               aes(x = x, ymin = conf.low, ymax = conf.high),
               fill = "deepskyblue", alpha = 0.25) +
   scale_y_log10() +
+  facet_wrap(~ group, ncol = 4) +
   labs(
-    x = "TAS Cover",
-    y = "Total Coral Area (cm², log scale)",
-    title = "Effect of TAS Cover on Coral Area"
+    x = "Turf and sediment cover (TAS)",
+    y = expression("Total coral area (cm"^2*", log scale)"),
+    title = "Effect of TAS cover on total coral area"
   ) +
-  theme_classic(base_size = 14)
+  theme_classic(base_size = 14)+
+  theme(
+    legend.position = "bottom"
+  )
 ```
 
 
