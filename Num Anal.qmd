@@ -129,40 +129,40 @@ car::Anova(n_corals_treat_year_model, type = "III")
 
 
 ```{r}
-library(lme4)
-library(broom.mixed)
-library(MuMIn)
-library(performance)
-library(DHARMa)
-
-n_corals_treat_year_model <- glmer.nb(
-  n_corals ~
-    Treatment +
-    Year +
-    (1 | Block),
-  data = combined_dfx
-)
-
-fixed_effects <- broom.mixed::tidy(n_corals_treat_year_model, effects = "fixed")
-
-r2 <- MuMIn::r.squaredGLMM(n_corals_treat_year_model)
-
-aic_val <- AIC(n_corals_treat_year_model)
-
-collinearity <- performance::check_collinearity(n_corals_treat_year_model)
-
-dispersion <- performance::check_overdispersion(n_corals_treat_year_model)
-
-anova(n_corals_treat_year_model)
-
-sim_res <- DHARMa::simulateResiduals(n_corals_treat_year_model)
-plot(sim_res)
-
-fixed_effects
-r2
-aic_val
-collinearity
-dispersion
+# library(lme4)
+# library(broom.mixed)
+# library(MuMIn)
+# library(performance)
+# library(DHARMa)
+# 
+# n_corals_treat_year_model <- glmer.nb(
+#   n_corals ~
+#     Treatment +
+#     Year +
+#     (1 | Block),
+#   data = combined_dfx
+# )
+# 
+# fixed_effects <- broom.mixed::tidy(n_corals_treat_year_model, effects = "fixed")
+# 
+# r2 <- MuMIn::r.squaredGLMM(n_corals_treat_year_model)
+# 
+# aic_val <- AIC(n_corals_treat_year_model)
+# 
+# collinearity <- performance::check_collinearity(n_corals_treat_year_model)
+# 
+# dispersion <- performance::check_overdispersion(n_corals_treat_year_model)
+# 
+# anova(n_corals_treat_year_model)
+# 
+# sim_res <- DHARMa::simulateResiduals(n_corals_treat_year_model)
+# plot(sim_res)
+# 
+# fixed_effects
+# r2
+# aic_val
+# collinearity
+# dispersion
 ```
 
 
@@ -176,6 +176,193 @@ emm_response <- emmeans(n_corals_treat_year_model, ~ Treatment, type = "response
 emm_response
 pairs(emm_response)
 cld(emm_response, Letters = letters)
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+library(emmeans)
+
+emm_density <- emmeans(n_corals_treat_year_model, ~ Treatment, type = "response")
+
+emm_density_letters <- cld(emm_density, Letters = letters)
+
+emm_density_df <- as.data.frame(emm_density_letters) %>%
+  mutate(.group = trimws(.group))
+
+# make treatment order match your preferred order
+# emm_density_df$Treatment <- factor(emm_df$Treatment,
+#                            levels = c("Con", "1x1", "2x2", "TopOnly"))
+# 
+# combined_df2$Treatment <- factor(combined_df2$Treatment,
+#                                  levels = c("Con", "1x1", "2x2", "TopOnly"))
+
+emm_density_df <- emm_density_df %>%
+  mutate(letter_y = asymp.UCL * 1.1)
+
+ggplot() +
+  # raw data
+  geom_jitter(
+    data = combined_df2,
+    aes(x = Treatment, y = n_corals, color = Treatment, shape = Treatment),
+    width = 0.12,
+    height = 0,
+    alpha = 0.6,
+    size = 2
+  ) +
+
+  # error bars
+  geom_errorbar(
+    data = emm_density_df,
+    aes(x = Treatment, ymin = asymp.LCL, ymax = asymp.UCL, color = Treatment),
+    width = 0.12,
+    linewidth = 1
+  ) +
+
+  # emmeans points
+  geom_point(
+    data = emm_density_df,
+    aes(x = Treatment, y = response, fill = Treatment),
+    size = 4,
+    shape = 21,
+    color = "black",
+    stroke = 1.2
+  ) +
+  scale_shape_manual(values = c(
+    "Con" = 19,
+    "1x1" = 18,
+    "2x2" = 17,
+    "TopOnly" = 15
+  ))+
+
+  # letters
+  geom_text(
+    data = emm_density_df,
+    aes(x = Treatment, y = letter_y, label = .group),
+    size = 5
+  ) +
+
+  scale_color_manual(values = c(
+    "Con" = "black",
+    "1x1" = "darkorchid4",
+    "2x2" = "darkred",
+    "TopOnly" = "deepskyblue2"
+  )) +
+
+  scale_fill_manual(values = c(
+    "Con" = "black",
+    "1x1" = "darkorchid4",
+    "2x2" = "darkred",
+    "TopOnly" = "deepskyblue2"
+  )) +
+
+
+  labs(
+    x = "Treatment",
+    y = "Number of Coral Individuals",
+    title = "Estimated Coral Density by Treatment"
+  ) +
+  scale_x_discrete(labels = c(
+  "Con" = "Control",
+  "1x1" = "Small",
+  "2x2" = "Medium",
+  "TopOnly" = "Large"
+))+
+
+  theme_classic(base_size = 14) +
+  theme(legend.position = "none")
+```
+
+
+
+```{r}
+density_df <- combined_df %>%
+    filter(!Year %in% c(2023, 2024)) |> 
+  group_by(Treatment, Year) %>%
+  summarise(
+    mean_density = mean(n_corals, na.rm = TRUE),
+    sd_density   = sd(n_corals, na.rm = TRUE),
+    n_blocks     = n(),
+    se_density   = sd_density / sqrt(n_blocks),
+    .groups = "drop"
+  )
+
+
+library(tidyr)
+
+density_df <- combined_df %>%
+      filter(!Year %in% c(2023, 2024)) |> 
+  group_by(Treatment, Year) %>%
+  summarise(
+    mean_density = mean(replace_na(n_corals, 0)),
+    sd_density   = sd(replace_na(n_corals, 0)),
+    n_blocks     = n(),
+    se_density   = sd_density / sqrt(n_blocks),
+    .groups = "drop"
+  )
+```
+
+
+
+
+```{r}
+dodge <- position_dodge(width = 0.4)
+
+ggplot(density_df,
+       aes(x = Year,
+           y = mean_density,
+           color = Treatment,
+           group = Treatment)) +
+
+  geom_line(alpha = 0.8,
+    position = dodge) +
+
+  geom_point(
+  aes(shape = Treatment),
+  size = 2,
+  position = position_dodge(width = 0.4)
+) +
+
+  geom_errorbar(
+    aes(ymin = mean_density - se_density,
+        ymax = mean_density + se_density),
+    width = 0.15,
+    alpha = 0.6,
+    position = dodge
+  ) +
+
+  scale_color_manual(values = c(
+    "Con" = "black",
+    "1x1" = "darkorchid4",
+    "2x2" = "darkred",
+    "TopOnly" = "deepskyblue2"
+  )) +
+
+  scale_shape_manual(values = c(
+    "Con" = 19,
+    "1x1" = 18,
+    "2x2" = 17,
+    "TopOnly" = 15
+  )) +
+
+  labs(
+    x = "Year",
+    y = "Coral density (# colonies per m²)",
+    title = "Coral density over time",
+    color = "Treatment",
+    shape = "Treatment"
+  ) +
+
+  theme_bw() +
+  theme(legend.position = "bottom")
 ```
 
 
@@ -265,8 +452,8 @@ n_corals_model <- glmer.nb(
   #Scleractinian +
   #SPAT +
   TAS +
-  Grazerdetritivore +
-  Herbivore_Sc_Br +
+  #Grazerdetritivore +
+  #Herbivore_Sc_Br +
   (1|Block),
   data = combined_df2
 )
@@ -281,7 +468,7 @@ collinearity <- performance::check_collinearity(n_corals_model)
 
 dispersion <- performance::check_overdispersion(n_corals_model)
 
-anova(n_corals_model)
+car::Anova(n_corals_model, type = "III")
 
 sim_res <- DHARMa::simulateResiduals(n_corals_model)
 plot(sim_res)
@@ -332,7 +519,7 @@ collinearity <- performance::check_collinearity(n_corals_model)
 
 dispersion <- performance::check_overdispersion(n_corals_model)
 
-anova(n_corals_model)
+car::Anova(n_corals_model, type = "III")
 
 sim_res <- DHARMa::simulateResiduals(n_corals_model)
 plot(sim_res)

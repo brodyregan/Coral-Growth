@@ -99,8 +99,6 @@ fixed_effects
 r2
 aic_val
 collinearity
-normality
-heteroscedasticity
 dispersion
 
 
@@ -128,6 +126,119 @@ emm_response
 pairs(emm_response)
 cld(emm_response, Letters = letters)
 ```
+
+
+
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(emmeans)
+library(scales)
+
+# estimated marginal means on response scale
+emm_treat <- emmeans(area_treat_year_model, ~ Treatment, type = "response")
+
+# pairwise letter groups
+emm_letters <- cld(emm_treat, Letters = letters)
+
+# turn into data frame
+emm_df <- as.data.frame(emm_letters)
+
+# clean spacing in .group column
+emm_df <- emm_df %>%
+  mutate(.group = trimws(.group))
+
+# make treatment order match your preferred order
+# emm_df$Treatment <- factor(emm_df$Treatment,
+#                            levels = c("Con", "1x1", "2x2", "TopOnly"))
+# 
+# combined_df2$Treatment <- factor(combined_df2$Treatment,
+#                                  levels = c("Con", "1x1", "2x2", "TopOnly"))
+
+# position for letters above error bars
+emm_df <- emm_df %>%
+  mutate(letter_y = asymp.UCL * 1.3)
+
+# plot
+ggplot() +
+  # raw data
+  geom_jitter(
+    data = combined_df2,
+    aes(x = Treatment, y = total_coral_area_cm2, color = Treatment, shape = Treatment),
+    width = 0.12,
+    height = 0,
+    alpha = 0.6,
+    size = 2
+  ) +
+  scale_shape_manual(values = c(
+    "Con" = 19,
+    "1x1" = 18,
+    "2x2" = 17,
+    "TopOnly" = 15
+  ))+
+
+  # error bars (colored, solid)
+  geom_errorbar(
+    data = emm_df,
+    aes(x = Treatment, ymin = asymp.LCL, ymax = asymp.UCL, color = Treatment),
+    width = 0.12,
+    linewidth = 1
+  ) +
+
+  # emmeans points (colored fill + black outline)
+  geom_point(
+    data = emm_df,
+    aes(x = Treatment, y = response, fill = Treatment),
+    size = 4,
+    shape = 21,           # allows fill + outline
+    color = "black",      # outline
+    stroke = 1.2
+  ) +
+
+  # letters
+  geom_text(
+    data = emm_df,
+    aes(x = Treatment, y = letter_y, label = .group),
+    size = 6
+  ) +
+
+  scale_color_manual(values = c(
+    "Con" = "black",
+    "1x1" = "darkorchid4",
+    "2x2" = "darkred",
+    "TopOnly" = "deepskyblue2"
+  )) +
+
+  scale_fill_manual(values = c(
+    "Con" = "black",
+    "1x1" = "darkorchid4",
+    "2x2" = "darkred",
+    "TopOnly" = "deepskyblue2"
+  )) +
+
+  scale_y_continuous() +
+
+  labs(
+    x = "Treatment",
+    y = expression("Total Coral Area (cm"^2*", log scale)"),
+    title = "Estimated Coral Area by Treatment"
+  ) +
+  scale_x_discrete(labels = c(
+  "Con" = "Control",
+  "1x1" = "Small",
+  "2x2" = "Medium",
+  "TopOnly" = "Large"
+))+
+
+  theme_classic(base_size = 14) +
+  theme(legend.position = "none")
+```
+
+
+
+
 
 
 
@@ -202,36 +313,9 @@ total_area_model <- lme4::glmer(
     #Grazerdetritivore +
     #Herbivore_Sc_Br +
     (1 | Block),
-  data = combined_df2,
+  data = combined_df1,
   family = Gamma(link = "log")
 )
-
-
-
-# fixed_effects <- broom.mixed::tidy(total_area_model, effects = "fixed")
-# 
-# r2 <- MuMIn::r.squaredGLMM(total_area_model)
-# 
-# aic_val <- AIC(total_area_model)
-# 
-# collinearity <- performance::check_collinearity(total_area_model)
-# 
-# normality <- performance::check_normality(total_area_model)
-# 
-# heteroscedasticity <- performance::check_heteroscedasticity(total_area_model)
-# 
-# dispersion <- performance::check_overdispersion(total_area_model)
-# 
-# anova(total_area_model)
-# 
-# fixed_effects
-# r2
-# aic_val
-# collinearity
-# normality
-# heteroscedasticity
-# dispersion
-
 
 
 
@@ -267,6 +351,8 @@ library(ggeffects)
 library(ggplot2)
 
 tas_pred <- ggpredict(total_area_model, terms = c("TAS", "Year"))
+tas_pred <- tas_pred %>%
+  rename(Year = group)
 ```
 
 
@@ -286,33 +372,66 @@ ggplot(tas_pred, aes(x = x, y = predicted)) +
 
 
 
+
+
+
+
 ```{r}
 ggplot() +
-  geom_point(data = combined_df2,
-             aes(x = TAS, y = total_coral_area_cm2, color = Treatment),
-             alpha = 0.5) +
-  geom_line(data = tas_pred,
-            aes(x = x, y = predicted),
-            color = "darkblue", linewidth = 1.2) +
-  geom_ribbon(data = tas_pred,
-              aes(x = x, ymin = conf.low, ymax = conf.high),
-              fill = "deepskyblue", alpha = 0.25) +
-  scale_y_log10() +
-  facet_wrap(~ group, ncol = 4) +
-  labs(
-    x = "Turf and sediment cover (TAS)",
-    y = expression("Total coral area (cm"^2*", log scale)"),
-    title = "Effect of TAS cover on total coral area"
+  geom_point(
+    data = combined_df1,
+    aes(x = TAS, y = total_coral_area_cm2,
+        color = Treatment, shape = Treatment),
+    alpha = 0.8
   ) +
-  theme_classic(base_size = 14)+
-  theme(
-    legend.position = "bottom"
+  geom_line(
+    data = tas_pred,
+    aes(x = x, y = predicted),
+    color = "darkblue", linewidth = 1.2
+  ) +
+  geom_ribbon(
+    data = tas_pred,
+    aes(x = x, ymin = conf.low, ymax = conf.high),
+    fill = "deepskyblue", alpha = 0.25
+  ) +
+  scale_color_manual(
+  values = c(
+    "Con" = "black",
+    "1x1" = "darkorchid4",
+    "2x2" = "darkred",
+    "TopOnly" = "deepskyblue2"
+  ),
+  labels = c(
+    "Con" = "Control",
+    "1x1" = "Small",
+    "2x2" = "Medium",
+    "TopOnly" = "Large"
   )
+) +
+scale_shape_manual(
+  values = c(
+    "Con" = 19,
+    "1x1" = 18,
+    "2x2" = 17,
+    "TopOnly" = 15
+  ),
+  labels = c(
+    "Con" = "Control",
+    "1x1" = "Small",
+    "2x2" = "Medium",
+    "TopOnly" = "Large"
+  )
+)+
+  scale_y_log10() +
+  facet_wrap(~ Year, ncol = 4) +
+  labs(
+    x = "Turf and Sediment Cover (% cover)",
+    y = expression("Total Coral Area (cm"^2*", log scale)"),
+    title = "Effect of TAS Cover on Total Toral Area"
+  ) +
+  theme_classic(base_size = 14) +
+  theme(legend.position = "bottom")
 ```
-
-
-
-
 
 
 

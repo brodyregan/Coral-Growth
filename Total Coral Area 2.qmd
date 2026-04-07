@@ -168,7 +168,24 @@ ggplot(total_area_norep,
     position = dodge
   ) +
 
-  geom_point(size = 2, position = dodge) +
+  geom_point(
+  aes(shape = Treatment),
+  size = 2,
+  position = position_dodge(width = 0.4)
+) +
+scale_shape_manual(values = c(
+  "Con" = 19,
+  "1x1" = 18,
+  "2x2" = 17,
+  "TopOnly" = 15
+),
+labels = c(
+      "1x1"     = "Small",
+      "2x2"     = "Medium",
+      "TopOnly" = "Large",
+      "Con"     = "Control"
+    )
+  )+
 
   geom_errorbar(
     aes(
@@ -190,9 +207,9 @@ ggplot(total_area_norep,
       "Con"     = "black"
     ),
     labels = c(
-      "1x1"     = "Small Inclusion",
-      "2x2"     = "Medium Inclusion",
-      "TopOnly" = "Large Inclusion",
+      "1x1"     = "Small",
+      "2x2"     = "Medium",
+      "TopOnly" = "Large",
       "Con"     = "Control"
     )
   ) +
