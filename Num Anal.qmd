@@ -26,12 +26,7 @@ combined_dfx <- combined_df %>%
 
 ```{r}
 combined_df1 <- combined_df %>%
-  filter(!Year %in% c(2018, 2024)) |> 
-   mutate(
-    Year = factor(Year),
-    Treatment = factor(Treatment),
-    Block = factor(Block)
-  )
+  filter(!Year %in% c(2018, 2023, 2024))
 ```
 
 ```{r}
@@ -128,44 +123,6 @@ car::Anova(n_corals_treat_year_model, type = "III")
 
 
 
-```{r}
-# library(lme4)
-# library(broom.mixed)
-# library(MuMIn)
-# library(performance)
-# library(DHARMa)
-# 
-# n_corals_treat_year_model <- glmer.nb(
-#   n_corals ~
-#     Treatment +
-#     Year +
-#     (1 | Block),
-#   data = combined_dfx
-# )
-# 
-# fixed_effects <- broom.mixed::tidy(n_corals_treat_year_model, effects = "fixed")
-# 
-# r2 <- MuMIn::r.squaredGLMM(n_corals_treat_year_model)
-# 
-# aic_val <- AIC(n_corals_treat_year_model)
-# 
-# collinearity <- performance::check_collinearity(n_corals_treat_year_model)
-# 
-# dispersion <- performance::check_overdispersion(n_corals_treat_year_model)
-# 
-# anova(n_corals_treat_year_model)
-# 
-# sim_res <- DHARMa::simulateResiduals(n_corals_treat_year_model)
-# plot(sim_res)
-# 
-# fixed_effects
-# r2
-# aic_val
-# collinearity
-# dispersion
-```
-
-
 
 
 ```{r}
@@ -231,7 +188,7 @@ ggplot() +
   geom_point(
     data = emm_density_df,
     aes(x = Treatment, y = response, fill = Treatment),
-    size = 4,
+    size = 3,
     shape = 21,
     color = "black",
     stroke = 1.2
@@ -279,6 +236,9 @@ ggplot() +
 
   theme_classic(base_size = 14) +
   theme(legend.position = "none")
+
+# setwd("C:/Users/brody/Desktop/Brody Thesis Project/Figures")
+# ggsave("Density Treatment.jpg", width = 8, height = 5) 
 ```
 
 
@@ -344,25 +304,41 @@ ggplot(density_df,
     "1x1" = "darkorchid4",
     "2x2" = "darkred",
     "TopOnly" = "deepskyblue2"
-  )) +
+  ),
+  labels = c(
+      "1x1"     = "Small",
+      "2x2"     = "Medium",
+      "TopOnly" = "Large",
+      "Con"     = "Control"
+    )) +
 
   scale_shape_manual(values = c(
     "Con" = 19,
     "1x1" = 18,
     "2x2" = 17,
     "TopOnly" = 15
-  )) +
+  ),
+  labels = c(
+      "1x1"     = "Small",
+      "2x2"     = "Medium",
+      "TopOnly" = "Large",
+      "Con"     = "Control"
+    )) +
 
   labs(
     x = "Year",
-    y = "Coral density (# colonies per m²)",
-    title = "Coral density over time",
+    y = "Coral Density (# colonies per m²)",
+    title = "Coral Density Through Time",
     color = "Treatment",
     shape = "Treatment"
   ) +
 
   theme_bw() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom",
+        legend.title = element_blank())
+
+# setwd("C:/Users/brody/Desktop/Brody Thesis Project/Figures")
+# ggsave("Coral Density.jpg", width = 8, height = 5) 
 ```
 
 
@@ -455,7 +431,7 @@ n_corals_model <- glmer.nb(
   #Grazerdetritivore +
   #Herbivore_Sc_Br +
   (1|Block),
-  data = combined_df2
+  data = combined_df1
 )
 
 fixed_effects <- broom.mixed::tidy(n_corals_model, effects = "fixed")
@@ -483,6 +459,114 @@ dispersion
 
 
 
+```{r}
+library(ggeffects)
+library(ggplot2)
+
+tas_pred_den <- ggpredict(n_corals_model, terms = c("TAS", "Year"))
+tas_pred_den <- tas_pred_den %>%
+  rename(Year = group)
+```
+
+
+
+
+```{r}
+ggplot() +
+  geom_point(
+    data = combined_df1,
+    aes(x = TAS, y = n_corals,
+        color = Treatment, shape = Treatment, fill = Treatment),
+    alpha = 0.8
+  ) +
+  geom_line(
+    data = tas_pred_den,
+    aes(x = x, y = predicted),
+    color = "black", linewidth = 1.2
+  ) +
+  geom_ribbon(
+    data = tas_pred_den,
+    aes(x = x, ymin = conf.low, ymax = conf.high),
+    fill = "gray17", alpha = 0.25
+  ) +
+  scale_color_manual(
+  values = c(
+    "Con" = "black",
+    "1x1" = "darkorchid4",
+    "2x2" = "darkred",
+    "TopOnly" = "deepskyblue2"
+  ),
+  labels = c(
+    "Con" = "Control",
+    "1x1" = "Small",
+    "2x2" = "Medium",
+    "TopOnly" = "Large"
+  )
+) +
+scale_shape_manual(
+  values = c(
+    "Con" = 21,
+    "1x1" = 22,
+    "2x2" = 23,
+    "TopOnly" = 24
+  ),
+  labels = c(
+    "Con" = "Control",
+    "1x1" = "Small",
+    "2x2" = "Medium",
+    "TopOnly" = "Large"
+  )
+)+
+  scale_fill_manual(
+    values = c(
+      "1x1"     = "darkorchid4",
+      "2x2"     = "darkred",
+      "TopOnly" = "deepskyblue2",
+      "Con"     = "black"
+    ),
+    labels = c(
+      "1x1"     = "Small",
+      "2x2"     = "Medium",
+      "TopOnly" = "Large",
+      "Con"     = "Control"
+    )
+  ) +
+  scale_y_log10() +
+  facet_wrap(~ Year, ncol = 4) +
+  labs(
+    x = "Turf and Sediment Cover (% cover)",
+    y = expression(bold("Number of Corals in m"^2*", log scale)")),
+    title = "Effect of TAS Cover on Density"
+  ) +
+  theme_classic(base_size = 14) +
+  theme(legend.position = "bottom",
+        plot.title = element_text(face = "bold", size = 14),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(color = "black"),)
+
+setwd("C:/Users/brody/Desktop/Brody Thesis Project/Figures")
+ggsave("TAS and Density.jpg", width = 8, height = 5) 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## Reef Builders Model 
 
 
@@ -494,7 +578,7 @@ library(MuMIn)
 library(performance)
 library(DHARMa)
 
-n_corals_model <- glmer.nb(
+n_corals_model_build <- glmer.nb(
   n_corals ~ #Treatment +
   Year + 
   CCA_calcareous +
@@ -506,22 +590,22 @@ n_corals_model <- glmer.nb(
   #Grazerdetritivore +
   #Herbivore_Sc_Br +
   (1|Block),
-  data = combined_df2
-)
+  data = combined_df1
+  )
 
-fixed_effects <- broom.mixed::tidy(n_corals_model, effects = "fixed")
+fixed_effects <- broom.mixed::tidy(n_corals_model_build, effects = "fixed")
 
-r2 <- MuMIn::r.squaredGLMM(n_corals_model)
+r2 <- MuMIn::r.squaredGLMM(n_corals_model_build)
 
-aic_val <- AIC(n_corals_model)
+aic_val <- AIC(n_corals_model_build)
 
-collinearity <- performance::check_collinearity(n_corals_model)
+collinearity <- performance::check_collinearity(n_corals_model_build)
 
-dispersion <- performance::check_overdispersion(n_corals_model)
+dispersion <- performance::check_overdispersion(n_corals_model_build)
 
-car::Anova(n_corals_model, type = "III")
+car::Anova(n_corals_model_build, type = "III")
 
-sim_res <- DHARMa::simulateResiduals(n_corals_model)
+sim_res <- DHARMa::simulateResiduals(n_corals_model_build)
 plot(sim_res)
 
 fixed_effects

@@ -112,6 +112,16 @@ testDispersion(sim_res)
 ```
 
 
+#### Get data set from total area plot code
+
+```{r}
+total_area_summary <- total_area_p1 %>%
+  group_by(Year) %>%
+  summarise(mean_area = mean(mean_total_coral_area_cm2, na.rm = TRUE))
+
+total_area_summary %>%
+  mutate(change = mean_area - lag(mean_area))
+```
 
 
 
@@ -191,7 +201,7 @@ ggplot() +
   geom_point(
     data = emm_df,
     aes(x = Treatment, y = response, fill = Treatment),
-    size = 4,
+    size = 3,
     shape = 21,           # allows fill + outline
     color = "black",      # outline
     stroke = 1.2
@@ -234,6 +244,9 @@ ggplot() +
 
   theme_classic(base_size = 14) +
   theme(legend.position = "none")
+
+# setwd("C:/Users/brody/Desktop/Brody Thesis Project/Figures")
+# ggsave("Area by Treatment.jpg", width = 8, height = 5) 
 ```
 
 
@@ -381,18 +394,18 @@ ggplot() +
   geom_point(
     data = combined_df1,
     aes(x = TAS, y = total_coral_area_cm2,
-        color = Treatment, shape = Treatment),
+        color = Treatment, shape = Treatment, fill = Treatment),
     alpha = 0.8
   ) +
   geom_line(
     data = tas_pred,
     aes(x = x, y = predicted),
-    color = "darkblue", linewidth = 1.2
+    color = "black", linewidth = 1.2
   ) +
   geom_ribbon(
     data = tas_pred,
     aes(x = x, ymin = conf.low, ymax = conf.high),
-    fill = "deepskyblue", alpha = 0.25
+    fill = "gray17", alpha = 0.25
   ) +
   scale_color_manual(
   values = c(
@@ -410,10 +423,10 @@ ggplot() +
 ) +
 scale_shape_manual(
   values = c(
-    "Con" = 19,
-    "1x1" = 18,
-    "2x2" = 17,
-    "TopOnly" = 15
+    "Con" = 21,
+    "1x1" = 22,
+    "2x2" = 23,
+    "TopOnly" = 24
   ),
   labels = c(
     "Con" = "Control",
@@ -422,15 +435,35 @@ scale_shape_manual(
     "TopOnly" = "Large"
   )
 )+
+   scale_fill_manual(
+    values = c(
+      "1x1"     = "darkorchid4",
+      "2x2"     = "darkred",
+      "TopOnly" = "deepskyblue2",
+      "Con"     = "black"
+    ),
+    labels = c(
+      "1x1"     = "Small",
+      "2x2"     = "Medium",
+      "TopOnly" = "Large",
+      "Con"     = "Control"
+    )
+  ) +
   scale_y_log10() +
   facet_wrap(~ Year, ncol = 4) +
   labs(
     x = "Turf and Sediment Cover (% cover)",
-    y = expression("Total Coral Area (cm"^2*", log scale)"),
-    title = "Effect of TAS Cover on Total Toral Area"
+    y = expression(bold("Total Coral Area (cm"^2*", log scale)")),
+    title = "Effect of TAS Cover on Total Coral Area"
   ) +
   theme_classic(base_size = 14) +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom",
+        plot.title = element_text(face = "bold", size = 14),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(color = "black"))
+
+setwd("C:/Users/brody/Desktop/Brody Thesis Project/Figures")
+ggsave("TAS and Area.jpg", width = 8, height = 5) 
 ```
 
 
