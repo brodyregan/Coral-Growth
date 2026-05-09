@@ -395,7 +395,9 @@ ggplot() +
     data = combined_df1,
     aes(x = TAS, y = total_coral_area_cm2,
         color = Treatment, shape = Treatment, fill = Treatment),
-    alpha = 0.8
+    alpha = 0.8,
+     color = "black",   # <-- outline color
+  stroke = 0.8       # <-- outline thickness (adjust as needed)
   ) +
   geom_line(
     data = tas_pred,

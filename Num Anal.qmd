@@ -2,7 +2,6 @@
 title: "Num Anal"
 format: html
 ---
-
 ```{r}
 library(tidyverse)
 library(readxl)
@@ -379,9 +378,9 @@ library(MuMIn)
 options(na.action = "na.fail")
 
 
-dredge(full_n, fixed ="Year")
+#dredge(full_n, fixed ="Year")
 
-dredge_n <- dredge(full_n, fixed = "Year")
+#dredge_n <- dredge(full_n, fixed = "Year")
 ```
 
 
@@ -477,7 +476,9 @@ ggplot() +
     data = combined_df1,
     aes(x = TAS, y = n_corals,
         color = Treatment, shape = Treatment, fill = Treatment),
-    alpha = 0.8
+    alpha = 0.8,
+     color = "black",   # <-- outline color
+  stroke = 0.8       # <-- outline thickness (adjust as needed)
   ) +
   geom_line(
     data = tas_pred_den,

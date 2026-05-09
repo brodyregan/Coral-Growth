@@ -17,7 +17,9 @@ p_den <- ggplot() +
     width = 0.12,
     height = 0,
     alpha = 0.6,
-    size = 2
+    size = 2,
+     color = "black",   # <-- outline color
+  stroke = 0.8       # <-- outline thickness (adjust as needed)
   ) +
 
   # error bars
@@ -93,7 +95,9 @@ p_area <- ggplot() +
     width = 0.12,
     height = 0,
     alpha = 0.6,
-    size = 2
+    size = 2,
+     color = "black",   # <-- outline color
+  stroke = 0.8       # <-- outline thickness (adjust as needed)
   ) +
   scale_shape_manual(values = c(
     "Con" = 21,
@@ -170,7 +174,7 @@ combined_plot <- p_area + p_den + plot_layout(ncol = 2)
 combined_plot
 
 setwd("C:/Users/brody/Desktop/Brody Thesis Project/Figures")
-ggsave("Area and Den emm.jpg", width = 10, height = 5) 
+ggsave("Area and Den emm.jpg", width = 10, height = 5)
 ```
 
 ```{r}
@@ -192,7 +196,9 @@ p_time_area <- ggplot(total_area_p1,
   geom_point(
     aes(shape = Treatment, fill = Treatment),
     size = 2,
-    position = dodge
+    position = dodge,
+     color = "black",   # <-- outline color
+  stroke = 0.8       # <-- outline thickness (adjust as needed)
   ) +
 
   scale_shape_manual(values = c(
@@ -274,7 +280,9 @@ p_den_time <- ggplot(density_df,
   geom_point(
     aes(shape = Treatment, fill = Treatment),
     size = 2,
-    position = dodge
+    position = dodge,
+     color = "black",   # <-- outline color
+  stroke = 0.8       # <-- outline thickness (adjust as needed)
   ) +
 
   geom_errorbar(
@@ -400,7 +408,9 @@ p_time_area <- ggplot(
   ) +
   geom_point(
     size = 2.5,
-    position = dodge
+    position = dodge,
+     color = "black",   # <-- outline color
+  stroke = 0.5       # <-- outline thickness (adjust as needed)
   ) +
   geom_errorbar(
     aes(
@@ -460,7 +470,9 @@ p_den_time <- ggplot(
   ) +
   geom_point(
     size = 2.5,
-    position = dodge
+    position = dodge,
+     color = "black",   # <-- outline color
+  stroke = 0.5       # <-- outline thickness (adjust as needed)
   ) +
   geom_errorbar(
     aes(
