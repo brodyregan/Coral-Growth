@@ -1,0 +1,152 @@
+---
+title: "Appendix"
+output: html_document
+---
+
+# Appendix A. R Code for Total Coral Area Analysis
+
+# Load packages
+library(tidyverse)
+library(readxl)
+library(lme4)
+library(broom.mixed)
+library(MuMIn)
+library(performance)
+library(DHARMa)
+library(car)
+library(emmeans)
+library(multcomp)
+library(multcompView)
+library(ggeffects)
+library(ggplot2)
+
+# Import and format data
+combined_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/combined_coral_benthic_fish.xlsx") |>
+  mutate(
+    Year = factor(Year),
+    Treatment = factor(Treatment, levels = c("Con", "1x1", "2x2", "TopOnly")),
+    Block = factor(Block)
+  )
+
+# Filter to Phase 1 analysis years
+combined_df1 <- combined_df |> 
+  filter(!Year %in% c(2018, 2023, 2024))
+
+# Scale continuous ecological predictors
+combined_df2 <- combined_df1 |> 
+  mutate(across(
+    c(CCA_calcareous, Fleshy_MA, `Lobo/Peys`,
+      Scleractinian, SPAT, TAS,
+      Grazerdetritivore, Herbivore_Sc_Br),
+    scale
+  ))
+
+# ------------------------------------------------------------
+# Treatment and Year Model Comparison
+# ------------------------------------------------------------
+
+t1 <- glmer(
+  total_coral_area_cm2 ~ Treatment + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+t2 <- glmer(
+  total_coral_area_cm2 ~ Year + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+t3 <- glmer(
+  total_coral_area_cm2 ~ Treatment + Year + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+t4 <- glmer(
+  total_coral_area_cm2 ~ Treatment * Year + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+anova(t1, t2, t3, t4)
+
+# Final treatment + year model
+area_treat_year_model <- glmer(
+  total_coral_area_cm2 ~ Treatment + Year + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+# Model output and diagnostics
+broom.mixed::tidy(area_treat_year_model, effects = "fixed")
+MuMIn::r.squaredGLMM(area_treat_year_model)
+AIC(area_treat_year_model)
+performance::check_collinearity(area_treat_year_model)
+performance::check_overdispersion(area_treat_year_model)
+car::Anova(area_treat_year_model, type = "III")
+
+# DHARMa residual diagnostics
+sim_res <- simulateResiduals(area_treat_year_model)
+plot(sim_res)
+testUniformity(sim_res)
+testDispersion(sim_res)
+
+# Estimated marginal means by treatment
+emm_response <- emmeans(area_treat_year_model, ~ Treatment, type = "response")
+emm_response
+pairs(emm_response)
+cld(emm_response, Letters = letters)
+
+# ------------------------------------------------------------
+# Full Ecological Predictor Model
+# ------------------------------------------------------------
+
+full_area <- glmer(
+  total_coral_area_cm2 ~ 
+    Year + 
+    CCA_calcareous +
+    Fleshy_MA +
+    `Lobo/Peys` +
+    SPAT +
+    TAS +
+    Grazerdetritivore +
+    Herbivore_Sc_Br +
+    (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+# AIC model selection
+options(na.action = "na.fail")
+
+area_dredge <- dredge(full_area, fixed = "Year")
+area_dredge
+
+# ------------------------------------------------------------
+# Final Total Coral Area Model with TAS
+# ------------------------------------------------------------
+
+total_area_model <- glmer(
+  total_coral_area_cm2 ~ Year + TAS + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+# Model output and diagnostics
+broom.mixed::tidy(total_area_model, effects = "fixed")
+MuMIn::r.squaredGLMM(total_area_model)
+AIC(total_area_model)
+performance::check_collinearity(total_area_model)
+performance::check_overdispersion(total_area_model)
+car::Anova(total_area_model, type = "III")
+
+# DHARMa residual diagnostics
+sim_res <- simulateResiduals(total_area_model)
+plot(sim_res)
+testUniformity(sim_res)
+testDispersion(sim_res)
+
+# Generate model predictions for TAS figure
+tas_pred <- ggpredict(total_area_model, terms = c("TAS", "Year")) |>
+  rename(Year = group)

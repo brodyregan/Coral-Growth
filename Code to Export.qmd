@@ -1,0 +1,449 @@
+---
+title: "Code to Export"
+format: html
+---
+
+## Total Area Analysis
+
+
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(dplyr)
+library(stringr)
+
+combined_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/combined_coral_benthic_fish.xlsx") |>
+  mutate(
+    Year = factor(Year),
+    Treatment = factor(
+      Treatment,
+      levels = c("Con", "1x1", "2x2", "TopOnly")
+    ),
+    Block = factor(Block)
+  )
+
+
+```
+
+```{r}
+combined_df1 <- combined_df |> 
+  filter(!Year %in% c(2018, 2023, 2024))
+```
+
+
+```{r}
+combined_df2 <- combined_df1 |> 
+  mutate(across(
+    c(CCA_calcareous, Fleshy_MA, `Lobo/Peys`,
+      Scleractinian, SPAT, TAS,
+      Grazerdetritivore, Herbivore_Sc_Br),
+    scale
+  ))
+```
+
+###############################################################################################################################
+
+## Treatment and Year
+
+```{r}
+library(lme4)
+
+t1 <- glmer(
+  total_coral_area_cm2 ~ Treatment + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link="log"),
+)
+
+t2 <- glmer(
+  total_coral_area_cm2 ~ Year + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link="log"),
+)
+
+t3 <- glmer(
+  total_coral_area_cm2 ~ Treatment + Year + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link="log"),
+)
+
+t4 <- glmer(
+  total_coral_area_cm2 ~ Treatment * Year + (1 | Block),
+ data = combined_df2,
+  family = Gamma(link="log")
+)
+
+anova(t1, t2, t3, t4)
+```
+
+```{r}
+area_treat_year_model <- lme4::glmer(
+  total_coral_area_cm2 ~
+    Treatment +
+    Year +
+    (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+fixed_effects <- broom.mixed::tidy(area_treat_year_model, effects = "fixed")
+
+r2 <- MuMIn::r.squaredGLMM(area_treat_year_model)
+
+aic_val <- AIC(area_treat_year_model)
+
+collinearity <- performance::check_collinearity(area_treat_year_model)
+
+
+dispersion <- performance::check_overdispersion(area_treat_year_model)
+
+car::Anova(area_treat_year_model, type = "III")
+
+fixed_effects
+r2
+aic_val
+collinearity
+dispersion
+
+
+library(DHARMa)
+
+sim_res <- simulateResiduals(area_treat_year_model)
+
+plot(sim_res)
+testUniformity(sim_res)
+testDispersion(sim_res)
+```
+
+
+#### Get data set from total area plot code
+
+```{r}
+total_area_summary <- total_area_p1 |> 
+  group_by(Year) |> 
+  summarise(mean_area = mean(mean_total_coral_area_cm2, na.rm = TRUE))
+
+total_area_summary |> 
+  mutate(change = mean_area - lag(mean_area))
+```
+
+
+
+```{r}
+library(emmeans)
+library(multcomp)
+library(multcompView)
+emm_response <- emmeans(area_treat_year_model, ~ Treatment, type = "response")
+emm_response
+pairs(emm_response)
+cld(emm_response, Letters = letters)
+```
+
+
+
+## Use total coral area model from other document 
+
+
+
+
+
+## Total area using gamma glm
+```{r}
+library(lme4)
+
+full_area <- glmer(
+  total_coral_area_cm2 ~ #Treatment +
+  Year + 
+  CCA_calcareous +
+  Fleshy_MA +
+  `Lobo/Peys` +
+  #Scleractinian +
+  SPAT +
+  TAS +
+  Grazerdetritivore +
+  Herbivore_Sc_Br +
+  (1|Block),
+  data = combined_df2,
+  family = Gamma(link="log")
+)
+```
+
+
+
+## Dredge 
+
+```{r message=FALSE, warning=FALSE}
+library(MuMIn)
+
+options(na.action = "na.fail")
+
+dredge(full_area, fixed = "Year")
+
+```
+
+
+
+
+
+
+
+```{r}
+total_area_model <- lme4::glmer(
+  total_coral_area_cm2 ~
+    #Treatment +
+    Year +
+    #CCA_calcareous +
+    #Fleshy_MA +
+    #`Lobo/Peys` +
+    #Scleractinian +
+    #SPAT +
+    TAS +
+    #Grazerdetritivore +
+    #Herbivore_Sc_Br +
+    (1 | Block),
+  data = combined_df1,
+  family = Gamma(link = "log")
+)
+
+
+broom.mixed::tidy(total_area_model, effects = "fixed")
+MuMIn::r.squaredGLMM(total_area_model)
+AIC(total_area_model)
+performance::check_collinearity(total_area_model)
+performance::check_overdispersion(total_area_model)
+
+library(DHARMa)
+sim_res <- simulateResiduals(total_area_model)
+plot(sim_res)
+testUniformity(sim_res)
+testDispersion(sim_res)
+
+car::Anova(total_area_model, type = "III")
+```
+
+
+```{r}
+library(ggeffects)
+library(ggplot2)
+
+tas_pred <- ggpredict(total_area_model, terms = c("TAS", "Year"))
+tas_pred <- tas_pred |> 
+  rename(Year = group)
+```
+
+
+********************************************************************************************************
+
+---
+title: "Num Anal"
+format: html
+---
+```{r}
+library(tidyverse)
+library(readxl)
+library(dplyr)
+library(stringr)
+
+combined_df <- read_excel("C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/combined_coral_benthic_fish.xlsx") |>
+   mutate(
+    Year = factor(Year),
+    Treatment = factor(
+      Treatment,
+      levels = c("Con", "1x1", "2x2", "TopOnly")
+    ),
+    Block = factor(Block)
+  )
+
+```
+
+```{r}
+combined_df1 <- combined_df %>%
+  filter(!Year %in% c(2018, 2023, 2024))
+```
+
+```{r}
+combined_df1 <- combined_df1 %>%
+  mutate(
+    Treatment = factor(
+      Treatment,
+      levels = c("Con", "1x1", "2x2", "TopOnly")
+    )
+  )
+```
+
+
+```{r}
+combined_df2 <- combined_df1 %>%
+  mutate(across(
+    c(CCA_calcareous, Fleshy_MA, `Lobo/Peys`,
+      Scleractinian, SPAT, TAS,
+      Grazerdetritivore, Herbivore_Sc_Br),
+    scale
+  ))
+```
+
+
+###############################################################################################################################
+
+
+## Treatment and Year
+
+```{r}
+library(lme4)
+
+n1 <- glmer.nb(
+  n_corals ~ Treatment + (1 | Block),
+  data = combined_df2
+)
+
+n2 <- glmer.nb(
+  n_corals ~ Year + (1 | Block),
+  data = combined_df2
+)
+
+n3 <- glmer.nb(
+  n_corals ~ Treatment + Year + (1 | Block),
+  data = combined_df2
+)
+
+n4 <- glmer.nb(
+  n_corals ~ Treatment * Year + (1 | Block),
+ data = combined_df2
+)
+
+anova(n1, n2, n3, n4, Type = "III")
+```
+
+```{r}
+n_corals_treat_year_model <- glmer.nb(
+  n_corals ~
+    Treatment +
+    Year +
+    (1 | Block),
+  data = combined_df2
+)
+
+broom.mixed::tidy(n_corals_treat_year_model, effects = "fixed")
+MuMIn::r.squaredGLMM(n_corals_treat_year_model)
+AIC(n_corals_treat_year_model)
+performance::check_collinearity(n_corals_treat_year_model)
+performance::check_overdispersion(n_corals_treat_year_model)
+
+library(DHARMa)
+sim_res <- simulateResiduals(n_corals_treat_year_model)
+plot(sim_res)
+testUniformity(sim_res)
+testDispersion(sim_res)
+
+car::Anova(n_corals_treat_year_model, type = "III")
+```
+
+
+
+```{r}
+library(emmeans)
+library(multcomp)
+library(multcompView)
+emm_response <- emmeans(n_corals_treat_year_model, ~ Treatment, type = "response")
+emm_response
+pairs(emm_response)
+cld(emm_response, Letters = letters)
+```
+
+
+
+
+
+
+
+```{r}
+full_n <- glmer.nb(
+  n_corals ~ #Treatment +
+  Year + 
+  CCA_calcareous +
+  Fleshy_MA +
+  `Lobo/Peys` +
+  #Scleractinian +
+  SPAT +
+  TAS +
+  Grazerdetritivore +
+  Herbivore_Sc_Br +
+  (1|Block),
+  data = combined_df2
+)
+```
+
+
+```{r}
+library(MuMIn)
+
+options(na.action = "na.fail")
+
+dredge(full_n, fixed ="Year")
+
+dredge_n <- dredge(full_n, fixed = "Year")
+```
+
+
+
+
+```{r}
+
+library(lme4)
+library(broom.mixed)
+library(MuMIn)
+library(performance)
+library(DHARMa)
+
+n_corals_model <- glmer.nb(
+  n_corals ~ #Treatment +
+  Year + 
+  #CCA_calcareous +
+  Fleshy_MA +
+  #`Lobo/Peys` +
+  #Scleractinian +
+  #SPAT +
+  TAS +
+  #Grazerdetritivore +
+  #Herbivore_Sc_Br +
+  (1|Block),
+  data = combined_df1
+)
+
+fixed_effects <- broom.mixed::tidy(n_corals_model, effects = "fixed")
+
+r2 <- MuMIn::r.squaredGLMM(n_corals_model)
+
+aic_val <- AIC(n_corals_model)
+
+collinearity <- performance::check_collinearity(n_corals_model)
+
+dispersion <- performance::check_overdispersion(n_corals_model)
+
+car::Anova(n_corals_model, type = "III")
+
+sim_res <- DHARMa::simulateResiduals(n_corals_model)
+plot(sim_res)
+
+fixed_effects
+r2
+aic_val
+collinearity
+dispersion
+```
+
+
+
+
+```{r}
+library(ggeffects)
+library(ggplot2)
+
+tas_pred_den <- ggpredict(n_corals_model, terms = c("TAS", "Year"))
+tas_pred_den <- tas_pred_den %>%
+  rename(Year = group)
+```
+
+
+
+

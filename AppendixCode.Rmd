@@ -1,0 +1,419 @@
+---
+title: "Appendix"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  eval = FALSE,
+  echo = TRUE,
+  results = "hide",
+  message = FALSE,
+  warning = FALSE,
+  fig.show = "hide"
+)
+```
+
+# Appendix A. Data Preparation and Correlation Matrix
+
+## Import Packages and Format Dataset
+
+Load required R packages for data wrangling, generalized linear mixed modeling, diagnostics, model selection, visualization, and correlation plotting. Import the combined coral, benthic, and fish dataset and format Year, Treatment, and Block as factors.
+
+```{r eval=TRUE}
+library(tidyverse)
+library(readxl)
+library(lme4)
+library(broom.mixed)
+library(MuMIn)
+library(performance)
+library(DHARMa)
+library(car)
+library(emmeans)
+library(multcomp)
+library(multcompView)
+library(ggeffects)
+library(ggplot2)
+library(corrplot)
+
+combined_df <- read_excel(
+  "C:/Users/brody/Desktop/Brody Thesis Project/Data Sets/combined_coral_benthic_fish.xlsx"
+) |>
+  mutate(
+    Year = factor(Year),
+    Treatment = factor(
+      Treatment,
+      levels = c("Con", "1x1", "2x2", "TopOnly")
+    ),
+    Block = factor(Block)
+  )
+```
+
+## Filter Dataset to Phase 1 Experimental Period
+
+Restrict analyses to Phase 1 of the exclusion cage experiment (2019–2022). Data from 2018 were excluded because coral cover was effectively absent and represented baseline conditions. Data from 2023–2024 were excluded because cages were shifted to new treatment levels in Phase 2.
+
+```{r eval=TRUE}
+combined_df1 <- combined_df |> 
+  filter(!Year %in% c(2018, 2023, 2024))
+```
+
+## Standardize Ecological Predictor Variables
+
+Scale continuous benthic and fish predictor variables to improve model convergence and allow direct comparison of effect sizes among predictors in generalized linear models.
+
+```{r eval=TRUE}
+combined_df2 <- combined_df1 |> 
+  mutate(across(
+    c(
+      CCA_calcareous,
+      Fleshy_MA,
+      `Lobo/Peys`,
+      Scleractinian,
+      SPAT,
+      TAS,
+      Grazerdetritivore,
+      Herbivore_Sc_Br
+    ),
+    scale
+  ))
+```
+
+## Correlation Matrix of Numeric Variables
+
+A correlation matrix was generated to visually assess relationships among numeric coral response variables, benthic cover variables, and fish predictor variables. This exploratory step was used to evaluate potential collinearity among predictors before fitting ecological models.
+
+```{r correlation-matrix, eval=TRUE, echo=TRUE, fig.show="asis", fig.width=7, fig.height=7}
+numeric_df <- combined_df2 |>
+  dplyr::select(where(is.numeric))
+
+cor_matrix <- cor(
+  numeric_df,
+  use = "pairwise.complete.obs"
+)
+
+corrplot(
+  cor_matrix,
+  method = "color",
+  type = "upper",
+  tl.col = "black",
+  tl.srt = 45
+)
+```
+
+# Appendix B. R Code for Total Coral Area Analysis
+
+## Compare Candidate Models Containing Treatment and Year Effects
+
+Fit Gamma generalized linear mixed models (GLMMs) with a log link to compare the relative effects of Treatment, Year, and their interaction on total coral area. Block was included as a random intercept to account for spatial replication among experimental blocks.
+
+```{r}
+t1 <- glmer(
+  total_coral_area_cm2 ~ Treatment + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+t2 <- glmer(
+  total_coral_area_cm2 ~ Year + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+t3 <- glmer(
+  total_coral_area_cm2 ~ Treatment + Year + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+t4 <- glmer(
+  total_coral_area_cm2 ~ Treatment * Year + (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+anova(t1, t2, t3, t4)
+```
+
+## Final Treatment + Year Model
+
+Fit the selected additive GLMM including Treatment and Year as fixed effects and Block as a random intercept. Model coefficients, R² metrics, AIC, collinearity diagnostics, overdispersion tests, and Type III ANOVA results were extracted.
+
+```{r}
+area_treat_year_model <- glmer(
+  total_coral_area_cm2 ~
+    Treatment +
+    Year +
+    (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+broom.mixed::tidy(area_treat_year_model, effects = "fixed")
+MuMIn::r.squaredGLMM(area_treat_year_model)
+AIC(area_treat_year_model)
+performance::check_collinearity(area_treat_year_model)
+performance::check_overdispersion(area_treat_year_model)
+car::Anova(area_treat_year_model, type = "III")
+```
+
+## Residual Diagnostics
+
+Use simulated residuals from the DHARMa package to evaluate model assumptions, including residual uniformity and overdispersion.
+
+```{r}
+sim_res <- simulateResiduals(area_treat_year_model)
+plot(sim_res)
+testUniformity(sim_res)
+testDispersion(sim_res)
+```
+
+## Estimated Marginal Means and Pairwise Comparisons
+
+Calculate estimated marginal means for treatment groups on the response scale and perform pairwise comparisons among treatments using compact letter displays.
+
+```{r}
+emm_response <- emmeans(
+  area_treat_year_model,
+  ~ Treatment,
+  type = "response"
+)
+
+emm_response
+pairs(emm_response)
+cld(emm_response, Letters = letters)
+```
+
+## Full Ecological Predictor Model
+
+Fit a global GLMM containing benthic cover and herbivore predictor variables to evaluate ecological drivers of total coral area across treatments and years.
+
+```{r}
+full_area <- glmer(
+  total_coral_area_cm2 ~
+    Year +
+    CCA_calcareous +
+    Fleshy_MA +
+    `Lobo/Peys` +
+    SPAT +
+    TAS +
+    Grazerdetritivore +
+    Herbivore_Sc_Br +
+    (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+```
+
+## Model Selection Using Akaike Information Criterion
+
+Use the dredge function in the MuMIn package to compare all possible predictor combinations while retaining Year as a fixed effect in every candidate model.
+
+```{r}
+options(na.action = "na.fail")
+
+area_dredge <- dredge(full_area, fixed = "Year")
+
+area_dredge
+```
+
+## Final Total Coral Area Model Including TAS
+
+Fit the final selected GLMM evaluating the effects of Year and turf algae and sediments on total coral area.
+
+```{r}
+total_area_model <- glmer(
+  total_coral_area_cm2 ~
+    Year +
+    TAS +
+    (1 | Block),
+  data = combined_df2,
+  family = Gamma(link = "log")
+)
+
+broom.mixed::tidy(total_area_model, effects = "fixed")
+MuMIn::r.squaredGLMM(total_area_model)
+AIC(total_area_model)
+performance::check_collinearity(total_area_model)
+performance::check_overdispersion(total_area_model)
+car::Anova(total_area_model, type = "III")
+```
+
+## Residual Diagnostics for Final TAS Model
+
+Evaluate residual uniformity and dispersion for the final TAS model using simulated residual diagnostics.
+
+```{r}
+sim_res <- simulateResiduals(total_area_model)
+plot(sim_res)
+testUniformity(sim_res)
+testDispersion(sim_res)
+```
+
+## Generate Predicted Relationships for Visualization
+
+Generate model-predicted values across the TAS gradient for each year to visualize the relationship between TAS and total coral area.
+
+```{r}
+tas_pred <- ggpredict(
+  total_area_model,
+  terms = c("TAS", "Year")
+) |>
+  rename(Year = group)
+```
+
+# Appendix C. R Code for Coral Density Analysis
+
+## Compare Candidate Models Containing Treatment and Year Effects
+
+Fit negative binomial GLMMs to compare the relative effects of Treatment, Year, and their interaction on coral density. Block was included as a random intercept to account for spatial replication among experimental blocks.
+
+```{r}
+n1 <- glmer.nb(
+  n_corals ~ Treatment + (1 | Block),
+  data = combined_df2
+)
+
+n2 <- glmer.nb(
+  n_corals ~ Year + (1 | Block),
+  data = combined_df2
+)
+
+n3 <- glmer.nb(
+  n_corals ~ Treatment + Year + (1 | Block),
+  data = combined_df2
+)
+
+n4 <- glmer.nb(
+  n_corals ~ Treatment * Year + (1 | Block),
+  data = combined_df2
+)
+
+anova(n1, n2, n3, n4)
+```
+
+## Final Treatment + Year Model
+
+Fit the selected additive negative binomial GLMM including Treatment and Year as fixed effects and Block as a random intercept. Model coefficients, R² metrics, AIC, collinearity diagnostics, overdispersion tests, and Type III ANOVA results were extracted.
+
+```{r}
+n_corals_treat_year_model <- glmer.nb(
+  n_corals ~
+    Treatment +
+    Year +
+    (1 | Block),
+  data = combined_df2
+)
+
+broom.mixed::tidy(n_corals_treat_year_model, effects = "fixed")
+MuMIn::r.squaredGLMM(n_corals_treat_year_model)
+AIC(n_corals_treat_year_model)
+performance::check_collinearity(n_corals_treat_year_model)
+performance::check_overdispersion(n_corals_treat_year_model)
+car::Anova(n_corals_treat_year_model, type = "III")
+```
+
+## Residual Diagnostics
+
+Use simulated residuals from the DHARMa package to evaluate model assumptions, including residual uniformity and overdispersion.
+
+```{r}
+sim_res <- simulateResiduals(n_corals_treat_year_model)
+plot(sim_res)
+testUniformity(sim_res)
+testDispersion(sim_res)
+```
+
+## Estimated Marginal Means and Pairwise Comparisons
+
+Calculate estimated marginal means for treatment groups on the response scale and perform pairwise comparisons among treatments using compact letter displays.
+
+```{r}
+emm_response <- emmeans(
+  n_corals_treat_year_model,
+  ~ Treatment,
+  type = "response"
+)
+
+emm_response
+pairs(emm_response)
+cld(emm_response, Letters = letters)
+```
+
+## Full Ecological Predictor Model
+
+Fit a global negative binomial GLMM containing benthic cover and herbivore predictor variables to evaluate ecological drivers of coral density across treatments and years.
+
+```{r}
+full_n <- glmer.nb(
+  n_corals ~
+    Year +
+    CCA_calcareous +
+    Fleshy_MA +
+    `Lobo/Peys` +
+    SPAT +
+    TAS +
+    Grazerdetritivore +
+    Herbivore_Sc_Br +
+    (1 | Block),
+  data = combined_df2
+)
+```
+
+## Model Selection Using Akaike Information Criterion
+
+Use the dredge function in the MuMIn package to compare all possible predictor combinations while retaining Year as a fixed effect in every candidate model.
+
+```{r}
+dredge_n <- dredge(full_n, fixed = "Year")
+
+dredge_n
+```
+
+## Final Coral Density Model Including TAS and Fleshy Macroalgae
+
+Fit the final selected negative binomial GLMM evaluating the effects of Year, turf algae and sediments, and fleshy macroalgae on coral density.
+
+```{r}
+n_corals_model <- glmer.nb(
+  n_corals ~
+    Year +
+    Fleshy_MA +
+    TAS +
+    (1 | Block),
+  data = combined_df2
+)
+
+broom.mixed::tidy(n_corals_model, effects = "fixed")
+MuMIn::r.squaredGLMM(n_corals_model)
+AIC(n_corals_model)
+performance::check_collinearity(n_corals_model)
+performance::check_overdispersion(n_corals_model)
+car::Anova(n_corals_model, type = "III")
+```
+
+## Residual Diagnostics for Final TAS and Fleshy Macroalgae Model
+
+Evaluate residual uniformity and dispersion for the final coral density model using simulated residual diagnostics.
+
+```{r}
+sim_res <- simulateResiduals(n_corals_model)
+plot(sim_res)
+testUniformity(sim_res)
+testDispersion(sim_res)
+```
+
+## Generate Predicted Relationships for Visualization
+
+Generate model-predicted values across the TAS gradient for each year to visualize the relationship between TAS and coral density.
+
+```{r}
+tas_pred_den <- ggpredict(
+  n_corals_model,
+  terms = c("TAS", "Year")
+) |>
+  rename(Year = group)
+```
